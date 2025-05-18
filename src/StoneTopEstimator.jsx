@@ -112,6 +112,39 @@ export default function StoneTopEstimator() {
     });
 
     setAllResults(results);
+
+    // Prepare lead + quote data for Google Sheets
+    const payload = {
+      name: userInfo.name,
+      email: userInfo.email,
+      phone: userInfo.phone,
+      quoteItems: results.map(p => ({
+        stone: p.stone,
+        note: p.note,
+        size: `${p.width}x${p.depth}`,
+        quantity: p.quantity,
+        edge: p.edgeDetail,
+        area: ((p.width * p.depth) / 144 * p.quantity).toFixed(2),
+        topsPerSlab: p.result?.topsPerSlab || 0,
+        slabsNeeded: Math.ceil(p.quantity / p.result?.topsPerSlab || 1),
+        materialCost: p.result?.materialCost?.toFixed(2) || 0,
+        fabCost: p.result?.fabricationCost?.toFixed(2) || 0,
+        rawCost: p.result?.rawCost?.toFixed(2) || 0,
+        finalPrice: p.result?.finalPrice?.toFixed(2) || 0
+      }))
+    };
+
+    fetch("https://script.google.com/macros/s/AKfycbz6jfOpq365I7GTMKHJ8SqEMeyDFB5er9K30LrK2oETe4Q-oAGDByx4rQxwRyUkVuaQZQ/exec", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    }).then(res => res.text()).then(data => {
+      console.log("Lead captured:", data);
+    }).catch(err => {
+      console.error("Lead capture failed:", err);
+    });
   };
 
   return (
