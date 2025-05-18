@@ -8,6 +8,7 @@ export default function StoneTopEstimator() {
   const [adminPassword, setAdminPassword] = useState('');
   const correctPassword = 'stone123';
 
+  const [userInfo, setUserInfo] = useState({ name: "", email: "", phone: "" });
   const [products, setProducts] = useState([
     { stone: '', width: '', depth: '', quantity: 1, edgeDetail: 'Eased', result: null }
   ]);
@@ -225,6 +226,38 @@ export default function StoneTopEstimator() {
         >
           Add Another Product
         </button>
+
+        
+        <div className="bg-gray-50 p-4 rounded shadow-md space-y-4 text-left">
+          <h2 className="text-lg font-semibold">Contact Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input
+              type="text"
+              placeholder="Full Name"
+              value={userInfo?.name || ""}
+              onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
+              className="border px-4 py-2 rounded w-full"
+              required
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              value={userInfo?.email || ""}
+              onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
+              className="border px-4 py-2 rounded w-full"
+              required
+            />
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              value={userInfo?.phone || ""}
+              onChange={(e) => setUserInfo({ ...userInfo, phone: e.target.value })}
+              className="border px-4 py-2 rounded w-full"
+              required
+            />
+          </div>
+        </div>
+
 
         <button
           onClick={calculateAll}
