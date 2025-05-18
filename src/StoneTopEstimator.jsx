@@ -239,11 +239,13 @@ export default function StoneTopEstimator() {
               <thead>
                 <tr className="bg-gray-200">
                   <th className="border px-4 py-2">Stone</th>
+<th className="border px-4 py-2">Note</th>
                   <th className="border px-4 py-2">Size</th>
                   <th className="border px-4 py-2">Qty</th>
                   <th className="border px-4 py-2">Edge</th>
                   <th className="border px-4 py-2">Area (sqft)</th>
                   <th className="border px-4 py-2">Tops/Slab</th>
+<th className="border px-4 py-2">Slabs Needed</th>
                   <th className="border px-4 py-2">Material $</th>
                   <th className="border px-4 py-2">Fab $</th>
                   <th className="border px-4 py-2">Raw $</th>
@@ -254,11 +256,13 @@ export default function StoneTopEstimator() {
                 {allResults.map((p, i) => (
                   <tr key={i} className="text-center">
                     <td className="border px-4 py-2">{p.stone}</td>
+<td className="border px-4 py-2">{p.note || ""}</td>
                     <td className="border px-4 py-2">{p.width}x{p.depth}</td>
                     <td className="border px-4 py-2">{p.quantity}</td>
                     <td className="border px-4 py-2">{p.edgeDetail}</td>
                     <td className="border px-4 py-2">{p.result?.usableAreaSqft.toFixed(2)}</td>
                     <td className="border px-4 py-2">{p.result?.topsPerSlab}</td>
+<td className="border px-4 py-2">{Math.ceil(p.quantity / p.result?.topsPerSlab)}</td>
                     <td className="border px-4 py-2">${p.result?.materialCost.toFixed(2)}</td>
                     <td className="border px-4 py-2">${p.result?.fabricationCost.toFixed(2)}</td>
                     <td className="border px-4 py-2">${p.result?.rawCost.toFixed(2)}</td>
