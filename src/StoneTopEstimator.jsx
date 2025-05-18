@@ -234,8 +234,8 @@ export default function StoneTopEstimator() {
         </button>
 
         {allResults.length > 0 && (
-          <div className="overflow-x-auto mt-6">
-            <table className="table-auto border-collapse border w-full text-sm">
+          <div className="mt-6 w-full">
+            <table className="min-w-full table-fixed border-collapse border text-sm">
               <thead>
                 <tr className="bg-gray-200">
                   <th className="border px-4 py-2">Stone</th>
