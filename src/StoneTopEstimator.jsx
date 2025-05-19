@@ -140,7 +140,7 @@ export default function StoneTopEstimator() {
 
     console.log("Sending data to SheetDB:", sheetRows);
 
-    // Send data to SheetDB API with exact expected format
+    // FIX: Capture response variable in the promise chain
     fetch("https://sheetdb.io/api/v1/meao888u7pgqn", {
       method: "POST",
       headers: {
@@ -150,20 +150,25 @@ export default function StoneTopEstimator() {
     })
     .then(response => {
       console.log("SheetDB response status:", response.status);
-      return response.text();
-    })
-    .then(data => {
-      console.log("SheetDB response:", data);
-      try {
-        const jsonData = JSON.parse(data);
-        console.log("Lead captured successfully:", jsonData);
-        alert("Quote calculated and saved successfully!");
-      } catch (e) {
-        console.log("Response is not JSON, raw response:", data);
-        if (data.includes("success") || response.status === 201) {
+      // Store the response status for later use
+      const responseStatus = response.status;
+      return response.text().then(data => {
+        console.log("SheetDB response:", data);
+        try {
+          const jsonData = JSON.parse(data);
+          console.log("Lead captured successfully:", jsonData);
           alert("Quote calculated and saved successfully!");
+        } catch (e) {
+          console.log("Response is not JSON, raw response:", data);
+          // Use the stored response status
+          if (data.includes("success") || responseStatus === 201) {
+            alert("Quote calculated and saved successfully!");
+          } else {
+            // If there's no success message and status is not 201, show error
+            throw new Error("Failed to save data to sheet");
+          }
         }
-      }
+      });
     })
     .catch(error => {
       console.error("Lead capture failed:", error);
