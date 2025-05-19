@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import html2pdf from 'html2pdf.js';
 
 export default function StoneTopEstimator() {
   const [stoneOptions, setStoneOptions] = useState([]);
@@ -91,8 +92,8 @@ export default function StoneTopEstimator() {
       const area = w * d;
       const usableAreaSqft = (area / 144) * quantity;
       const slabWidth = parseFloat(stone["Slab Width"]) || 63;
-    const slabHeight = parseFloat(stone["Slab Height"]) || 126;
-    const topsPerSlab = Math.floor((slabWidth * slabHeight) / area);
+      const slabHeight = parseFloat(stone["Slab Height"]) || 126;
+      const topsPerSlab = Math.floor((slabWidth * slabHeight) / area);
       const materialCost = (slabCost / topsPerSlab) * quantity * 1.10; // 10% buffer for breakage
       const fabricationCost = usableAreaSqft * fabCost;
       const rawCost = materialCost + fabricationCost;
@@ -113,52 +114,145 @@ export default function StoneTopEstimator() {
 
     setAllResults(results);
 
-    // Prepare lead + quote data for Google Sheets
-    const payload = {
+    // Prepare SheetDB data in the correct format
+    const sheetData = results.map(p => ({
       name: userInfo.name,
       email: userInfo.email,
       phone: userInfo.phone,
-      quoteItems: results.map(p => ({
-        stone: p.stone,
-        note: p.note,
-        size: `${p.width}x${p.depth}`,
-        quantity: p.quantity,
-        edge: p.edgeDetail,
-        area: ((p.width * p.depth) / 144 * p.quantity).toFixed(2),
-        topsPerSlab: p.result?.topsPerSlab || 0,
-        slabsNeeded: Math.ceil(p.quantity / p.result?.topsPerSlab || 1),
-        materialCost: p.result?.materialCost?.toFixed(2) || 0,
-        fabCost: p.result?.fabricationCost?.toFixed(2) || 0,
-        rawCost: p.result?.rawCost?.toFixed(2) || 0,
-        finalPrice: p.result?.finalPrice?.toFixed(2) || 0
-      }))
-    };
+      stone: p.stone,
+      note: p.note || "",
+      size: `${p.width}x${p.depth}`,
+      quantity: p.quantity,
+      edge: p.edgeDetail,
+      area: ((p.width * p.depth) / 144 * p.quantity).toFixed(2),
+      topsPerSlab: p.result?.topsPerSlab || 0,
+      slabsNeeded: Math.ceil(p.quantity / (p.result?.topsPerSlab || 1)),
+      materialCost: p.result?.materialCost?.toFixed(2) || 0,
+      fabCost: p.result?.fabricationCost?.toFixed(2) || 0,
+      rawCost: p.result?.rawCost?.toFixed(2) || 0,
+      finalPrice: p.result?.finalPrice?.toFixed(2) || 0
+    }));
 
+    // Send data to SheetDB API
     fetch("https://sheetdb.io/api/v1/meao888u7pgqn", {
       method: "POST",
-      body: JSON.stringify({ data: payload.quoteItems }),
       headers: {
         "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ data: sheetData })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
-    }).then(res => res.text()).then(data => {
-      console.log("Lead captured:", data);
-    }).catch(err => {
-      console.error("Lead capture failed:", err);
+      return response.json();
+    })
+    .then(data => {
+      console.log("Lead captured successfully:", data);
+    })
+    .catch(error => {
+      console.error("Lead capture failed:", error);
     });
+  };
+
+  const generatePDF = () => {
+    if (allResults.length === 0) {
+      alert("Please calculate estimates first");
+      return;
+    }
+
+    const element = document.createElement('div');
+    element.className = 'pdf-content p-6';
+    
+    // Add company logo and header
+    element.innerHTML = `
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="font-size: 24px; font-weight: bold;">AIC SURFACES - STONE QUOTE</h1>
+        <p>Date: ${new Date().toLocaleDateString()}</p>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 18px; font-weight: bold;">Customer Information</h2>
+        <p>Name: ${userInfo.name}</p>
+        <p>Email: ${userInfo.email}</p>
+        <p>Phone: ${userInfo.phone}</p>
+      </div>
+      
+      <h2 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Quote Details</h2>
+    `;
+    
+    // Create table for products
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    
+    // Add table header
+    table.innerHTML = `
+      <thead>
+        <tr style="background-color: #f2f2f2;">
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Stone</th>
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Size</th>
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Qty</th>
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Edge</th>
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Area (sqft)</th>
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${allResults.map(p => `
+          <tr>
+            <td style="border: 1px solid #ddd; padding: 8px;">${p.stone}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">${p.width}x${p.depth}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">${p.quantity}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">${p.edgeDetail}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">${p.result?.usableAreaSqft.toFixed(2)}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">$${p.result?.finalPrice.toFixed(2)}</td>
+          </tr>
+          ${p.note ? `<tr><td colspan="6" style="border: 1px solid #ddd; padding: 8px; font-style: italic;">Note: ${p.note}</td></tr>` : ''}
+        `).join('')}
+      </tbody>
+    `;
+    
+    // Add total
+    const totalPrice = allResults.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0);
+    table.innerHTML += `
+      <tfoot>
+        <tr style="font-weight: bold;">
+          <td colspan="5" style="border: 1px solid #ddd; padding: 8px; text-align: right;">Total:</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">$${totalPrice.toFixed(2)}</td>
+        </tr>
+      </tfoot>
+    `;
+    
+    element.appendChild(table);
+    
+    // Add footer
+    element.innerHTML += `
+      <div style="margin-top: 30px;">
+        <p style="font-size: 12px;">This quote is valid for 30 days. For questions, please contact AIC Surfaces.</p>
+      </div>
+    `;
+    
+    // Generate PDF
+    const opt = {
+      margin: 10,
+      filename: `AIC_Quote_${userInfo.name.replace(/\s+/g, '_')}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    html2pdf().from(element).set(opt).save();
   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-5xl space-y-6 text-center">
         
-        
-
-
-        
-<div className="text-center mb-4">
-  <img src="/AIC.jpg" alt="Logo" className="mx-auto mb-2" style={{ maxWidth: '140px' }} />
-  <h1 className="text-base font-medium text-gray-700">Developed by Roy Kariok</h1>
-</div>
+        <div className="text-center mb-4">
+          <img src="/AIC.jpg" alt="Logo" className="mx-auto mb-2" style={{ maxWidth: '140px' }} />
+          <h1 className="text-base font-medium text-gray-700">Developed by Roy Kariok</h1>
+        </div>
 
         {!adminMode && (
           <div className="mb-4">
@@ -179,7 +273,7 @@ export default function StoneTopEstimator() {
         )}
 
         {products.map((product, index) => (
-          <div key={index} className="bg-gray-50 p-4 rounded shadow space-y-4 text-left">
+          <div key={index} className="bg-gray-50 p-4 rounded shadow space-y-4 text-left relative">
             <div className="grid grid-cols-3 gap-4">
               <select
                 value={product.stone}
@@ -220,7 +314,7 @@ export default function StoneTopEstimator() {
                 className="border px-4 py-2 rounded"
               >
                 <option value="Eased">Eased</option>
-                <option value="1.5” mitered">1.5” mitered</option>
+                <option value="1.5 mitered">1.5" mitered</option>
               </select>
               <input
                 type="file"
@@ -230,7 +324,6 @@ export default function StoneTopEstimator() {
               />
             </div>
 
-            
             <textarea
               placeholder="Notes (optional)"
               value={product.note || ""}
@@ -240,14 +333,12 @@ export default function StoneTopEstimator() {
             />
 
             {products.length > 1 && (
-              <button type="button" onClick={() => removeProduct(index)} className="text-red-600 font-bold text-xl absolute top-2 right-2">&times;</button>
-            ) && (
               <button
                 type="button"
                 onClick={() => removeProduct(index)}
-                className="text-red-600 text-sm"
+                className="text-red-600 font-bold text-xl absolute top-2 right-2"
               >
-                Remove Product
+                &times;
               </button>
             )}
           </div>
@@ -260,7 +351,6 @@ export default function StoneTopEstimator() {
           Add Another Product
         </button>
 
-        
         <div className="bg-gray-50 p-4 rounded shadow-md space-y-4 text-left">
           <h2 className="text-lg font-semibold">Contact Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -291,27 +381,37 @@ export default function StoneTopEstimator() {
           </div>
         </div>
 
-
-        <button
-          onClick={calculateAll}
-          className="ml-4 px-4 py-2 bg-green-600 text-white rounded"
-        >
-          Calculate All
-        </button>
+        <div className="flex space-x-4 justify-center">
+          <button
+            onClick={calculateAll}
+            className="px-4 py-2 bg-green-600 text-white rounded"
+          >
+            Calculate All
+          </button>
+          
+          {allResults.length > 0 && (
+            <button
+              onClick={generatePDF}
+              className="px-4 py-2 bg-blue-600 text-white rounded"
+            >
+              Generate PDF Quote
+            </button>
+          )}
+        </div>
 
         {allResults.length > 0 && (
-          <div className="mt-6 w-full">
-            <table className="min-w-full table-fixed border-collapse border text-sm">
+          <div className="mt-6 w-full overflow-x-auto">
+            <table className="min-w-full border-collapse border text-sm">
               <thead>
                 <tr className="bg-gray-200">
                   <th className="border px-4 py-2">Stone</th>
-<th className="border px-4 py-2">Note</th>
+                  <th className="border px-4 py-2">Note</th>
                   <th className="border px-4 py-2">Size</th>
                   <th className="border px-4 py-2">Qty</th>
                   <th className="border px-4 py-2">Edge</th>
                   <th className="border px-4 py-2">Area (sqft)</th>
                   <th className="border px-4 py-2">Tops/Slab</th>
-<th className="border px-4 py-2">Slabs Needed</th>
+                  <th className="border px-4 py-2">Slabs Needed</th>
                   <th className="border px-4 py-2">Material $</th>
                   <th className="border px-4 py-2">Fab $</th>
                   <th className="border px-4 py-2">Raw $</th>
@@ -322,13 +422,13 @@ export default function StoneTopEstimator() {
                 {allResults.map((p, i) => (
                   <tr key={i} className="text-center">
                     <td className="border px-4 py-2">{p.stone}</td>
-<td className="border px-4 py-2">{p.note || ""}</td>
+                    <td className="border px-4 py-2">{p.note || ""}</td>
                     <td className="border px-4 py-2">{p.width}x{p.depth}</td>
                     <td className="border px-4 py-2">{p.quantity}</td>
                     <td className="border px-4 py-2">{p.edgeDetail}</td>
                     <td className="border px-4 py-2">{p.result?.usableAreaSqft.toFixed(2)}</td>
                     <td className="border px-4 py-2">{p.result?.topsPerSlab}</td>
-<td className="border px-4 py-2">{Math.ceil(p.quantity / p.result?.topsPerSlab)}</td>
+                    <td className="border px-4 py-2">{Math.ceil(p.quantity / p.result?.topsPerSlab)}</td>
                     <td className="border px-4 py-2">${p.result?.materialCost.toFixed(2)}</td>
                     <td className="border px-4 py-2">${p.result?.fabricationCost.toFixed(2)}</td>
                     <td className="border px-4 py-2">${p.result?.rawCost.toFixed(2)}</td>
@@ -339,8 +439,7 @@ export default function StoneTopEstimator() {
             </table>
           </div>
         )}
-        </div>
-            
       </div>
+    </div>
   );
 }
