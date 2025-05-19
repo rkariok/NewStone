@@ -114,44 +114,60 @@ export default function StoneTopEstimator() {
 
     setAllResults(results);
 
-    // Prepare SheetDB data in the correct format
-    const sheetData = results.map(p => ({
-      name: userInfo.name,
-      email: userInfo.email,
-      phone: userInfo.phone,
-      stone: p.stone,
-      note: p.note || "",
-      size: `${p.width}x${p.depth}`,
-      quantity: p.quantity,
-      edge: p.edgeDetail,
-      area: ((p.width * p.depth) / 144 * p.quantity).toFixed(2),
-      topsPerSlab: p.result?.topsPerSlab || 0,
-      slabsNeeded: Math.ceil(p.quantity / (p.result?.topsPerSlab || 1)),
-      materialCost: p.result?.materialCost?.toFixed(2) || 0,
-      fabCost: p.result?.fabricationCost?.toFixed(2) || 0,
-      rawCost: p.result?.rawCost?.toFixed(2) || 0,
-      finalPrice: p.result?.finalPrice?.toFixed(2) || 0
-    }));
+    // Convert results to an array of flat objects exactly matching the structure expected by SheetDB
+    const sheetRows = results.map(p => {
+      if (!p.result) return null;
+      
+      return {
+        "Name": userInfo.name || "",
+        "Email": userInfo.email || "",
+        "Phone": userInfo.phone || "",
+        "Stone Type": p.stone || "",
+        "Notes": p.note || "",
+        "Size": `${p.width}x${p.depth}`,
+        "Quantity": p.quantity || 0,
+        "Edge": p.edgeDetail || "",
+        "Area": ((parseFloat(p.width || 0) * parseFloat(p.depth || 0)) / 144 * parseInt(p.quantity || 0)).toFixed(2),
+        "Tops Per Slab": p.result?.topsPerSlab || 0,
+        "Slabs Needed": Math.ceil(parseInt(p.quantity || 0) / (p.result?.topsPerSlab || 1)),
+        "Material Cost": parseFloat(p.result?.materialCost || 0).toFixed(2),
+        "Fabrication Cost": parseFloat(p.result?.fabricationCost || 0).toFixed(2),
+        "Raw Cost": parseFloat(p.result?.rawCost || 0).toFixed(2),
+        "Final Price": parseFloat(p.result?.finalPrice || 0).toFixed(2),
+        "Date": new Date().toLocaleDateString()
+      };
+    }).filter(Boolean);
 
-    // Send data to SheetDB API
+    console.log("Sending data to SheetDB:", sheetRows);
+
+    // Send data to SheetDB API with exact expected format
     fetch("https://sheetdb.io/api/v1/meao888u7pgqn", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ data: sheetData })
+      body: JSON.stringify({ data: sheetRows })
     })
     .then(response => {
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return response.json();
+      console.log("SheetDB response status:", response.status);
+      return response.text();
     })
     .then(data => {
-      console.log("Lead captured successfully:", data);
+      console.log("SheetDB response:", data);
+      try {
+        const jsonData = JSON.parse(data);
+        console.log("Lead captured successfully:", jsonData);
+        alert("Quote calculated and saved successfully!");
+      } catch (e) {
+        console.log("Response is not JSON, raw response:", data);
+        if (data.includes("success") || response.status === 201) {
+          alert("Quote calculated and saved successfully!");
+        }
+      }
     })
     .catch(error => {
       console.error("Lead capture failed:", error);
+      alert("Failed to save quote data. Please try again.");
     });
   };
 
