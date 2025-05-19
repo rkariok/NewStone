@@ -115,36 +115,40 @@ export default function StoneTopEstimator() {
     setAllResults(results);
 
     // Convert results to an array of flat objects exactly matching the structure expected by SheetDB
+    // Match column names EXACTLY as they appear in the Google Sheet
     const sheetRows = results.map(p => {
       if (!p.result) return null;
       
+      const currentDate = new Date();
+      
       return {
+        "Timestamp": "Now", // Use "Now" as shown in your sheet
         "Name": userInfo.name || "",
         "Email": userInfo.email || "",
         "Phone": userInfo.phone || "",
-        "Stone Type": p.stone || "",
-        "Notes": p.note || "",
+        "Stone": p.stone || "",
+        "Note": p.note || "",
         "Size": `${p.width}x${p.depth}`,
-        "Quantity": p.quantity || 0,
+        "Qty": p.quantity || 0,
         "Edge": p.edgeDetail || "",
         "Area": ((parseFloat(p.width || 0) * parseFloat(p.depth || 0)) / 144 * parseInt(p.quantity || 0)).toFixed(2),
-        "Tops Per Slab": p.result?.topsPerSlab || 0,
+        "Tops/Slab": p.result?.topsPerSlab || 0,
         "Slabs Needed": Math.ceil(parseInt(p.quantity || 0) / (p.result?.topsPerSlab || 1)),
-        "Material Cost": parseFloat(p.result?.materialCost || 0).toFixed(2),
-        "Fabrication Cost": parseFloat(p.result?.fabricationCost || 0).toFixed(2),
-        "Raw Cost": parseFloat(p.result?.rawCost || 0).toFixed(2),
-        "Final Price": parseFloat(p.result?.finalPrice || 0).toFixed(2),
-        "Date": new Date().toLocaleDateString()
+        "Material": parseFloat(p.result?.materialCost || 0).toFixed(2),
+        "Fab": parseFloat(p.result?.fabricationCost || 0).toFixed(2),
+        "Raw": parseFloat(p.result?.rawCost || 0).toFixed(2),
+        "Final": parseFloat(p.result?.finalPrice || 0).toFixed(2)
       };
     }).filter(Boolean);
 
     console.log("Sending data to SheetDB:", sheetRows);
 
-    // FIX: Capture response variable in the promise chain
+    // Make sure we're using the right SheetDB endpoint that matches your Google Sheet's structure
     fetch("https://sheetdb.io/api/v1/meao888u7pgqn", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       },
       body: JSON.stringify({ data: sheetRows })
     })
@@ -153,19 +157,25 @@ export default function StoneTopEstimator() {
       // Store the response status for later use
       const responseStatus = response.status;
       return response.text().then(data => {
-        console.log("SheetDB response:", data);
+        console.log("SheetDB raw response:", data);
         try {
           const jsonData = JSON.parse(data);
-          console.log("Lead captured successfully:", jsonData);
-          alert("Quote calculated and saved successfully!");
+          console.log("SheetDB parsed response:", jsonData);
+          
+          if (jsonData.created || responseStatus === 201 || responseStatus === 200) {
+            alert("Quote calculated and saved successfully!");
+          } else {
+            console.error("SheetDB API error:", jsonData);
+            alert("Error saving to sheet: " + (jsonData.error || "Unknown error"));
+          }
         } catch (e) {
           console.log("Response is not JSON, raw response:", data);
           // Use the stored response status
-          if (data.includes("success") || responseStatus === 201) {
+          if (data.includes("success") || responseStatus === 201 || responseStatus === 200) {
             alert("Quote calculated and saved successfully!");
           } else {
-            // If there's no success message and status is not 201, show error
-            throw new Error("Failed to save data to sheet");
+            console.error("SheetDB parse error:", e);
+            alert("Failed to save data to sheet. Check console for details.");
           }
         }
       });
