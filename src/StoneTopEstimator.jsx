@@ -34,10 +34,23 @@ export default function StoneTopEstimator() {
     formData.append("image", selectedFile);
 
     try {
-      // Removed SheetDB call from handleDrawingUpload else {
+      const res = await fetch("https://gpt4-drawing-backend.vercel.app/api/extract-dimensions", {
+        method: "POST",
+        headers: {
+          "x-vercel-protection-bypass": "paramusicalkariokparamusicalkari"
+        },
+        body: formData
+      });
+      const json = await res.json();
+      if (json.success) {
+        const updated = [...products];
+        updated[index].width = json.data.width;
+        updated[index].depth = json.data.depth;
+        setProducts(updated);
+      } else {
         alert("AI Error: " + (json.error || "Unexpected response"));
       }
-    } catch {
+    } catch (error) {
       alert("Failed to extract dimensions from drawing.");
     } finally {
       setLoadingAI(false);
@@ -99,40 +112,6 @@ export default function StoneTopEstimator() {
     });
 
     setAllResults(results);
-
-const payload = {
-      name: userInfo.name,
-      email: userInfo.email,
-      phone: userInfo.phone,
-      quoteItems: results.map(p => ({
-        Timestamp: new Date().toLocaleString(),
-        Name: userInfo.name,
-        Email: userInfo.email,
-        Phone: userInfo.phone,
-        Stone: p.stone,
-        Note: p.note || "",
-        Size: `${p.width}x${p.depth}`,
-        Qty: p.quantity,
-        Edge: p.edgeDetail,
-        Area: ((p.width * p.depth) / 144 * p.quantity).toFixed(2),
-        "Tops/Slab": p.result?.topsPerSlab || 0,
-        "Slabs Needed": Math.ceil(p.quantity / p.result?.topsPerSlab || 1),
-        Material: p.result?.materialCost?.toFixed(2) || 0,
-        Fab: p.result?.fabricationCost?.toFixed(2) || 0,
-        Raw: p.result?.rawCost?.toFixed(2) || 0,
-        Final: p.result?.finalPrice?.toFixed(2) || 0
-      }))
-    };
-
-    fetch("https://sheetdb.io/api/v1/meao888u7pgqn", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ data: payload.quoteItems })
-    }).then(res => res.json())
-      .then(json => console.log("SheetDB Response:", json))
-      .catch(err => console.error("SheetDB Error:", err));
 
     // Prepare lead + quote data for Google Sheets
     const payload = {
