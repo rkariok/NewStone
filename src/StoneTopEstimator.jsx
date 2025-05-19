@@ -34,13 +34,32 @@ export default function StoneTopEstimator() {
     formData.append("image", selectedFile);
 
     try {
-      const res = await fetch("https://gpt4-drawing-backend.vercel.app/api/extract-dimensions", {
-        method: "POST",
-        headers: {
-          "x-vercel-protection-bypass": "paramusicalkariokparamusicalkari"
-        },
-        body: formData
-      });
+      const res = await fetch("https://sheetdb.io/api/v1/meao888u7pgqn", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    data: results.map(p => ({
+      Timestamp: new Date().toLocaleString(),
+      Name: userInfo.name,
+      Email: userInfo.email,
+      Phone: userInfo.phone,
+      Stone: p.stone,
+      Note: p.note || "",
+      Size: `${p.width}x${p.depth}`,
+      Qty: p.quantity,
+      Edge: p.edgeDetail,
+      Area: ((p.width * p.depth) / 144 * p.quantity).toFixed(2),
+      "Tops/Slab": p.result?.topsPerSlab || 0,
+      "Slabs Needed": Math.ceil(p.quantity / p.result?.topsPerSlab || 1),
+      Material: p.result?.materialCost?.toFixed(2) || 0,
+      Fab: p.result?.fabricationCost?.toFixed(2) || 0,
+      Raw: p.result?.rawCost?.toFixed(2) || 0,
+      Final: p.result?.finalPrice?.toFixed(2) || 0
+    }))
+  })
+}););
       const json = await res.json();
       if (json.success) {
         const updated = [...products];
