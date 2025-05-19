@@ -59,7 +59,7 @@ export default function StoneTopEstimator() {
       Final: p.result?.finalPrice?.toFixed(2) || 0
     }))
   })
-}););
+});
       const json = await res.json();
       if (json.success) {
         const updated = [...products];
