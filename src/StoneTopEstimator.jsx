@@ -134,7 +134,7 @@ export default function StoneTopEstimator() {
       }))
     };
 
-    fetch("https://script.google.com/macros/s/AKfycbz4szro7v4eZ9-m96waxvTMd-cgLd5mrb5IAWTlLf0YAUPdao8i_u3XXGI3aQhViVVl/exec", {
+    fetch("https://script.google.com/macros/s/AKfycbwibWI-bxOgeRtIKDE-l-tNhs2Js5gpt93EgOqIjFjRgECls8_8oYkr8DJQ3m6FgkSDLw/exec", {
       method: "POST",
       body: JSON.stringify(payload),
       headers: {
