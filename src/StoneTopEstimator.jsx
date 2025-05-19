@@ -136,14 +136,19 @@ export default function StoneTopEstimator() {
 
     fetch("https://sheetdb.io/api/v1/meao888u7pgqn", {
       method: "POST",
-      body: JSON.stringify({ data: payload.quoteItems }),
-      headers: {
-        "Content-Type": "application/json"
-      }
+      body: JSON.stringify({
+      data: payload.quoteItems.filter(item =>
+        item.stone &&
+        item.size !== "x" &&
+        item.area !== "NaN" &&
+        parseFloat(item.materialCost) > 0
+      )
     }).then(res => res.text()).then(data => {
-      console.log("Lead captured:", data);
+      console.log("SheetDB Payload:", payload);
+alert("Quote submitted successfully!");
     }).catch(err => {
       console.error("Lead capture failed:", err);
+alert("Failed to submit quote. Please try again.");
     });
   };
 
