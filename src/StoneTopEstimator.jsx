@@ -1,7 +1,10 @@
-function advancedOptimizeTopsPerSlab(slabWidth, slabHeight, topWidth, topHeight, kerf = 0.25) {
+
+import { useState, useEffect } from 'react';
+import html2pdf from 'html2pdf.js';
+
+function mixedOrientationTopsPerSlab(slabWidth, slabHeight, topWidth, topHeight, kerf = 0.25) {
   let placements = 0;
   const placed = [];
-  const used = [];
 
   const tryPlace = (w, h) => {
     for (let y = 0; y <= slabHeight - h; y += 0.25) {
@@ -39,80 +42,6 @@ function advancedOptimizeTopsPerSlab(slabWidth, slabHeight, topWidth, topHeight,
 
   return placements;
 }
-
-function optimizeTopsPerSlab(slabWidth, slabHeight, topWidth, topHeight, kerf = 0.25) {
-  let count = 0;
-  const placed = [];
-  const placements = [];
-  const used = Array(slabHeight + 1).fill().map(() => Array(slabWidth + 1).fill(false));
-
-  function fits(x, y, w, h) {
-    if (x + w > slabWidth || y + h > slabHeight) return false;
-    for (let i = y; i < y + h; i++) {
-      for (let j = x; j < x + w; j++) {
-        if (used[i][j]) return false;
-      }
-    }
-    return true;
-  }
-
-  function occupy(x, y, w, h) {
-    for (let i = y; i < y + h; i++) {
-      for (let j = x; j < x + w; j++) {
-        used[i][j] = true;
-      }
-    }
-    placements.push({ x, y, w, h });
-  }
-
-  const kerfW = topWidth + kerf;
-  const kerfH = topHeight + kerf;
-  const rotW = topHeight + kerf;
-  const rotH = topWidth + kerf;
-
-  for (let y = 0; y <= slabHeight - 1; y++) {
-    for (let x = 0; x <= slabWidth - 1; x++) {
-      if (fits(x, y, kerfW, kerfH)) {
-        occupy(x, y, kerfW, kerfH);
-        count++;
-      } else if (fits(x, y, rotW, rotH)) {
-        occupy(x, y, rotW, rotH);
-        count++;
-      }
-    }
-  }
-
-  return count;
-}
-
-function mixedOrientationTopsPerSlab(slabW, slabH, pieceW, pieceH, kerf = 0.25) {
-  const layout = [];
-  const placed = [];
-
-  const gridW = slabW;
-  const gridH = slabH;
-
-  const tryPlace = (layout, pw, ph) => {
-    for (let y = 0; y <= gridH - ph; y++) {
-      for (let x = 0; x <= gridW - pw; x++) {
-        let fits = true;
-        for (const item of layout) {
-          if (
-            !(x + pw <= item.x || item.x + item.w <= x ||
-              y + ph <= item.y || item.y + item.h <= y)
-          ) {
-            fits = false;
-            break;
-          };
-  const orient2 = {
-    topsWide: Math.floor(slabWidth / (topHeight + kerf)),
-    topsHigh: Math.floor(slabHeight / (topWidth + kerf))
-  };
-  return Math.max(orient1.topsWide * orient1.topsHigh, orient2.topsWide * orient2.topsHigh);
-}
-
-import { useState, useEffect } from 'react';
-import html2pdf from 'html2pdf.js';
 
 export default function StoneTopEstimator() {
   const [stoneOptions, setStoneOptions] = useState([]);
