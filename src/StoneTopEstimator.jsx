@@ -103,37 +103,7 @@ function mixedOrientationTopsPerSlab(slabW, slabH, pieceW, pieceH, kerf = 0.25) 
           ) {
             fits = false;
             break;
-          }
-        }
-        if (fits) {
-          layout.push({ x, y, w: pw, h: ph });
-          return true;
-        }
-      }
-    }
-    return false;
-  };
-
-  let count = 0;
-  while (true) {
-    const pwA = pieceW + kerf;
-    const phA = pieceH + kerf;
-    const pwB = pieceH + kerf;
-    const phB = pieceW + kerf;
-
-    let placedA = tryPlace(layout, pwA, phA);
-    if (!placedA) placedA = tryPlace(layout, pwB, phB);
-    if (!placedA) break;
-    count++;
-  }
-  return count;
-}
-
-function mixedOrientationTopsPerSlab(slabWidth, slabHeight, topWidth, topHeight, kerf = 0.25) {
-  const orient1 = {
-    topsWide: Math.floor(slabWidth / (topWidth + kerf)),
-    topsHigh: Math.floor(slabHeight / (topHeight + kerf))
-  };
+          };
   const orient2 = {
     topsWide: Math.floor(slabWidth / (topHeight + kerf)),
     topsHigh: Math.floor(slabHeight / (topWidth + kerf))
