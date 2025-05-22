@@ -1,11 +1,5 @@
 import { useState, useEffect } from 'react';
 
-declare global {
-  interface Window {
-    html2pdf: any;
-  }
-}
-
 export default function StoneTopEstimator() {
   const [stoneOptions, setStoneOptions] = useState([]);
   const [file, setFile] = useState(null);
@@ -706,7 +700,6 @@ export default function StoneTopEstimator() {
               <tbody>
                 {allResults.map((p, i) => (
                   <tr key={i} className="text-center">
-                    <td className="border px-4 py-2">{p.stone}</td>
                     <td className="border px-4 py-2">{p.width}×{p.depth}</td>
                     <td className="border px-4 py-2">{p.quantity}</td>
                     <td className="border px-4 py-2">{p.edgeDetail}</td>
@@ -774,4 +767,5 @@ export default function StoneTopEstimator() {
       </div>
     </div>
   );
-}
+}.stone}</td>
+                    <td className="border px-4 py-2">{p
