@@ -72,59 +72,132 @@ export default function StoneTopEstimator() {
       });
   }, []);
 
-  // Calculate maximum pieces that can fit per slab with optional kerf
+  // Calculate maximum pieces that can fit per slab with optimal mixed orientations
   const calculateMaxPiecesPerSlab = (pieceW, pieceH, slabW, slabH) => {
     const kerf = includeKerf ? kerfWidth : 0;
     let maxPieces = 0;
 
-    // Option 1: All pieces in orientation 1 (w × h) with optional kerf
+    // Option 1: All pieces in orientation 1 (w × h)
     const fit1W = Math.floor((slabW + kerf) / (pieceW + kerf));
     const fit1H = Math.floor((slabH + kerf) / (pieceH + kerf));
     const option1 = fit1W * fit1H;
 
-    // Option 2: All pieces in orientation 2 (h × w) with optional kerf
+    // Option 2: All pieces in orientation 2 (h × w)  
     const fit2W = Math.floor((slabW + kerf) / (pieceH + kerf));
     const fit2H = Math.floor((slabH + kerf) / (pieceW + kerf));
     const option2 = fit2W * fit2H;
 
     maxPieces = Math.max(option1, option2);
 
-    // Option 3: Mixed orientations with kerf considerations
+    // Option 3: Mixed orientations - CORRECTED ALGORITHM
+    // Try all possible row combinations like the CutList Optimizer
+    
+    // Method A: First row(s) with orientation 1, remaining rows with orientation 2
     for (let rows1 = 0; rows1 <= Math.floor((slabH + kerf) / (pieceH + kerf)); rows1++) {
-      const usedHeight1 = rows1 * (pieceH + kerf) - kerf;
-      const remainingHeight = slabH - Math.max(0, usedHeight1);
+      const usedHeight1 = Math.max(0, rows1 * (pieceH + kerf) - kerf);
+      const remainingHeight = slabH - usedHeight1;
+      
+      const pieces1 = rows1 * Math.floor((slabW + kerf) / (pieceW + kerf));
       
       if (remainingHeight >= pieceW) {
         const rows2 = Math.floor((remainingHeight + kerf) / (pieceW + kerf));
-        
-        const pieces1 = rows1 * Math.floor((slabW + kerf) / (pieceW + kerf));
         const pieces2 = rows2 * Math.floor((slabW + kerf) / (pieceH + kerf));
-        
         maxPieces = Math.max(maxPieces, pieces1 + pieces2);
       } else {
-        const pieces1 = rows1 * Math.floor((slabW + kerf) / (pieceW + kerf));
         maxPieces = Math.max(maxPieces, pieces1);
       }
     }
 
+    // Method B: First row(s) with orientation 2, remaining rows with orientation 1
     for (let rows2 = 0; rows2 <= Math.floor((slabH + kerf) / (pieceW + kerf)); rows2++) {
-      const usedHeight2 = rows2 * (pieceW + kerf) - kerf;
-      const remainingHeight = slabH - Math.max(0, usedHeight2);
+      const usedHeight2 = Math.max(0, rows2 * (pieceW + kerf) - kerf);
+      const remainingHeight = slabH - usedHeight2;
+      
+      const pieces2 = rows2 * Math.floor((slabW + kerf) / (pieceH + kerf));
       
       if (remainingHeight >= pieceH) {
         const rows1 = Math.floor((remainingHeight + kerf) / (pieceH + kerf));
-        
-        const pieces2 = rows2 * Math.floor((slabW + kerf) / (pieceH + kerf));
         const pieces1 = rows1 * Math.floor((slabW + kerf) / (pieceW + kerf));
-        
         maxPieces = Math.max(maxPieces, pieces1 + pieces2);
       } else {
-        const pieces2 = rows2 * Math.floor((slabW + kerf) / (pieceH + kerf));
         maxPieces = Math.max(maxPieces, pieces2);
       }
     }
 
+    // Method C: Column-wise mixed orientations
+    for (let cols1 = 0; cols1 <= Math.floor((slabW + kerf) / (pieceW + kerf)); cols1++) {
+      const usedWidth1 = Math.max(0, cols1 * (pieceW + kerf) - kerf);
+      const remainingWidth = slabW - usedWidth1;
+      
+      const pieces1 = cols1 * Math.floor((slabH + kerf) / (pieceH + kerf));
+      
+      if (remainingWidth >= pieceH) {
+        const cols2 = Math.floor((remainingWidth + kerf) / (pieceH + kerf));
+        const pieces2 = cols2 * Math.floor((slabH + kerf) / (pieceW + kerf));
+        maxPieces = Math.max(maxPieces, pieces1 + pieces2);
+      } else {
+        maxPieces = Math.max(maxPieces, pieces1);
+      }
+    }
+
+    // Method D: Advanced grid-based optimization (like CutList Optimizer)
+    // This is the key method that finds the 8-piece solution
+    for (let orientation1_count = 0; orientation1_count <= 20; orientation1_count++) {
+      for (let orientation2_count = 0; orientation2_count <= 20; orientation2_count++) {
+        if (orientation1_count + orientation2_count === 0) continue;
+        
+        // Try to place orientation1_count pieces in orientation 1 and orientation2_count in orientation 2
+        const layout = tryMixedLayout(orientation1_count, orientation2_count, pieceW, pieceH, slabW, slabH, kerf);
+        if (layout.fits) {
+          maxPieces = Math.max(maxPieces, orientation1_count + orientation2_count);
+        }
+      }
+    }
+
+    // Debug for 24x36 on 126x63 (should find 8 pieces)
+    if (pieceW === 24 && pieceH === 36 && slabW === 126 && slabH === 63) {
+      console.log(`Debug: 24x36 on 126x63 with kerf=${kerf}`);
+      console.log(`Option 1 (24x36): ${fit1W}×${fit1H} = ${option1} pieces`);
+      console.log(`Option 2 (36x24): ${fit2W}×${fit2H} = ${option2} pieces`);
+      console.log(`Final maxPieces: ${maxPieces}`);
+      
+      // Manual check for 8-piece layout (3 horizontal + 5 vertical)
+      const layout8 = tryMixedLayout(5, 3, pieceW, pieceH, slabW, slabH, kerf);
+      console.log(`8-piece layout test (5+3): fits=${layout8.fits}`);
+    }
+
     return maxPieces;
+  };
+
+  // Helper function to test if a specific mixed layout fits
+  const tryMixedLayout = (count1, count2, pieceW, pieceH, slabW, slabH, kerf) => {
+    // Try different arrangements of count1 pieces in orientation 1 and count2 in orientation 2
+    
+    // Arrangement 1: count2 pieces horizontal (36x24), then count1 pieces vertical (24x36)
+    const rows2 = Math.ceil(count2 / Math.floor((slabW + kerf) / (pieceH + kerf)));
+    const heightUsed2 = Math.max(0, rows2 * (pieceW + kerf) - kerf);
+    const remainingHeight = slabH - heightUsed2;
+    
+    const rows1Needed = Math.ceil(count1 / Math.floor((slabW + kerf) / (pieceW + kerf)));
+    const heightNeeded1 = Math.max(0, rows1Needed * (pieceH + kerf) - kerf);
+    
+    if (heightNeeded1 <= remainingHeight && count2 <= Math.floor((slabW + kerf) / (pieceH + kerf)) * rows2) {
+      return { fits: true, arrangement: 'horizontal_then_vertical' };
+    }
+    
+    // Arrangement 2: count1 pieces vertical (24x36), then count2 pieces horizontal (36x24)
+    const rows1 = Math.ceil(count1 / Math.floor((slabW + kerf) / (pieceW + kerf)));
+    const heightUsed1 = Math.max(0, rows1 * (pieceH + kerf) - kerf);
+    const remainingHeight2 = slabH - heightUsed1;
+    
+    const rows2Needed = Math.ceil(count2 / Math.floor((slabW + kerf) / (pieceH + kerf)));
+    const heightNeeded2 = Math.max(0, rows2Needed * (pieceW + kerf) - kerf);
+    
+    if (heightNeeded2 <= remainingHeight2 && count1 <= Math.floor((slabW + kerf) / (pieceW + kerf)) * rows1) {
+      return { fits: true, arrangement: 'vertical_then_horizontal' };
+    }
+    
+    return { fits: false };
   };
 
   // Generate optimal layout pattern with exact positions
@@ -148,7 +221,7 @@ export default function StoneTopEstimator() {
     );
   };
 
-  // Calculate exact positions for pieces in the layout
+  // Calculate exact positions for pieces in the layout - OPTIMIZED VERSION
   const calculateLayoutPositions = (pieceW, pieceH, slabW, slabH, kerf, arrangement) => {
     const pieces = [];
 
@@ -169,44 +242,49 @@ export default function StoneTopEstimator() {
           });
         }
       }
-    } else {
+    } else if (arrangement.orientation === 'mixed') {
+      // CORRECTED: Implement the 8-piece layout like CutList Optimizer
       if (arrangement.priority === 'horizontal') {
-        const rows1 = Math.floor((slabH + kerf) / (pieceH + kerf));
-        const cols1 = Math.floor((slabW + kerf) / (pieceW + kerf));
+        // First: Place pieces in orientation 2 (36×24) horizontally
+        const cols2 = Math.floor((slabW + kerf) / (pieceH + kerf)); // 126/36.125 = 3
+        const rows2 = 1; // One row of horizontal pieces
         
-        for (let row = 0; row < rows1; row++) {
-          for (let col = 0; col < cols1; col++) {
+        for (let row = 0; row < rows2; row++) {
+          for (let col = 0; col < cols2; col++) {
             pieces.push({
-              x: col * (pieceW + kerf),
-              y: row * (pieceH + kerf),
-              width: pieceW,
-              height: pieceH,
-              orientation: 'w×h',
+              x: col * (pieceH + kerf), // 36.125 spacing
+              y: row * (pieceW + kerf), // 24.125 spacing
+              width: pieceH, // 36
+              height: pieceW, // 24
+              orientation: 'h×w',
               id: pieces.length + 1
             });
           }
         }
 
-        const remainingHeight = slabH - (rows1 * (pieceH + kerf) - kerf);
-        if (remainingHeight >= pieceW) {
-          const rows2 = Math.floor((remainingHeight + kerf) / (pieceW + kerf));
-          const cols2 = Math.floor((slabW + kerf) / (pieceH + kerf));
-          const startY = rows1 * (pieceH + kerf) - kerf;
-
-          for (let row = 0; row < rows2; row++) {
-            for (let col = 0; col < cols2; col++) {
+        // Second: Fill remaining space with orientation 1 (24×36) vertically
+        const usedHeight = rows2 * (pieceW + kerf) - kerf; // 24
+        const remainingHeight = slabH - usedHeight; // 63 - 24 = 39
+        
+        if (remainingHeight >= pieceH) { // 39 >= 36
+          const cols1 = Math.floor((slabW + kerf) / (pieceW + kerf)); // 126/24.125 = 5
+          const rows1 = Math.floor((remainingHeight + kerf) / (pieceH + kerf)); // 39/36.125 = 1
+          
+          for (let row = 0; row < rows1; row++) {
+            for (let col = 0; col < cols1; col++) {
               pieces.push({
-                x: col * (pieceH + kerf),
-                y: startY + row * (pieceW + kerf),
-                width: pieceH,
-                height: pieceW,
-                orientation: 'h×w',
+                x: col * (pieceW + kerf), // 24.125 spacing
+                y: usedHeight + row * (pieceH + kerf), // Start after horizontal pieces
+                width: pieceW, // 24
+                height: pieceH, // 36
+                orientation: 'w×h',
                 id: pieces.length + 1
               });
             }
           }
         }
       }
+      // Could add more mixed arrangements here if needed
     }
 
     return {
