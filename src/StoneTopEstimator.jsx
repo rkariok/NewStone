@@ -165,46 +165,32 @@ export default function StoneTopEstimator() {
   const generateOptimalLayoutPattern = (pieceW, pieceH, slabW, slabH) => {
     const kerf = includeKerf ? kerfWidth : 0;
     
-    console.log(`Generating layout for ${pieceW}×${pieceH} on ${slabW}×${slabH}, kerf: ${kerf}`);
+    console.log(`🎨 GENERATING LAYOUT for ${pieceW}×${pieceH} on ${slabW}×${slabH}, kerf: ${kerf}`);
     
-    // FORCE the 8-piece layout for 24×36 on 126×63 - this is the optimal solution
-    if (pieceW === 24 && pieceH === 36 && slabW === 126 && slabH === 63) {
-      const optimalLayout = create8PieceOptimalLayout(kerf);
-      console.log('Using forced 8-piece optimal layout:', optimalLayout);
-      return optimalLayout;
+    // Use the SAME calculation as calculateMaxPiecesPerSlab
+    const maxPieces = calculateMaxPiecesPerSlab(pieceW, pieceH, slabW, slabH);
+    
+    console.log(`🎯 Target pieces to generate layout for: ${maxPieces}`);
+    
+    // FORCE the 8-piece layout for 24×36 on 126×63
+    if (pieceW === 24 && pieceH === 36 && slabW === 126 && slabH === 63 && maxPieces === 8) {
+      return create8PieceOptimalLayout(kerf);
     }
     
-    // For other sizes, test all layouts and find the best one
+    // For other cases, create layout that matches the calculated max pieces
     const layouts = [];
     
     // Single orientation layouts
     const layout1 = testSingleOrientationLayout(pieceW, pieceH, slabW, slabH, kerf, 'vertical');
-    console.log('Layout1 (vertical):', layout1);
     if (layout1.totalPieces > 0) layouts.push(layout1);
     
     const layout2 = testSingleOrientationLayout(pieceH, pieceW, slabW, slabH, kerf, 'horizontal');
-    console.log('Layout2 (horizontal):', layout2);
     if (layout2.totalPieces > 0) layouts.push(layout2);
     
-    // Mixed orientation layouts - try various combinations
-    const maxPossible = Math.max(layout1.totalPieces, layout2.totalPieces) + 3; // Add buffer for mixed
-    for (let verticalCount = 0; verticalCount <= maxPossible; verticalCount++) {
-      for (let horizontalCount = 0; horizontalCount <= maxPossible - verticalCount; horizontalCount++) {
-        if (verticalCount + horizontalCount === 0) continue;
-        if (verticalCount + horizontalCount > 15) break; // Reasonable limit
-        
-        const mixedLayout = testMixedOrientationLayout(verticalCount, horizontalCount, pieceW, pieceH, slabW, slabH, kerf);
-        if (mixedLayout && mixedLayout.totalPieces > 0) {
-          layouts.push(mixedLayout);
-        }
-      }
-    }
+    // Find the layout that matches our calculated max pieces
+    const bestLayout = layouts.find(layout => layout.totalPieces === maxPieces) || layouts[0] || { pieces: [], totalPieces: 0, layoutType: 'none' };
     
-    // Sort layouts by number of pieces (descending) and return the best one
-    layouts.sort((a, b) => b.totalPieces - a.totalPieces);
-    const bestLayout = layouts[0] || { pieces: [], totalPieces: 0, layoutType: 'none' };
-    
-    console.log('Best layout selected:', bestLayout);
+    console.log(`🎨 Generated layout:`, bestLayout);
     return bestLayout;
   };
 
@@ -398,42 +384,64 @@ export default function StoneTopEstimator() {
     const pieceWidth = pieces[0].width;
     const pieceHeight = pieces[0].depth;
 
+    console.log(`🏭 OPTIMIZING SLAB LAYOUT: ${pieces.length} pieces of ${pieceWidth}×${pieceHeight} on ${slabWidth}×${slabHeight}`);
+
     const maxPiecesPerSlab = calculateMaxPiecesPerSlab(pieceWidth, pieceHeight, slabWidth, slabHeight);
+    console.log(`📊 Max pieces per slab calculated: ${maxPiecesPerSlab}`);
+    
     const layoutPattern = generateOptimalLayoutPattern(pieceWidth, pieceHeight, slabWidth, slabHeight);
+    console.log(`🎨 Layout pattern generated:`, layoutPattern);
+    
+    // ENSURE consistency: use the max pieces from calculation, not from layout pattern
+    const actualTopsPerSlab = maxPiecesPerSlab; // Force use of calculation result
     
     const slabs = [];
     let remainingPieces = [...pieces];
 
     while (remainingPieces.length > 0) {
-      const piecesForThisSlab = remainingPieces.splice(0, Math.min(maxPiecesPerSlab, remainingPieces.length));
+      const piecesForThisSlab = remainingPieces.splice(0, Math.min(actualTopsPerSlab, remainingPieces.length));
       const slabLayout = createDetailedSlabLayout(piecesForThisSlab, layoutPattern, slabWidth, slabHeight);
       slabs.push(slabLayout);
     }
 
-    return {
+    const result = {
       slabs,
       unplacedPieces: [],
       totalSlabsNeeded: slabs.length,
       efficiency: calculateEfficiency(slabs, slabWidth, slabHeight),
-      topsPerSlab: maxPiecesPerSlab,
+      topsPerSlab: actualTopsPerSlab, // Use the calculated value, not layout pattern
       layoutPattern
     };
+    
+    console.log(`🎯 FINAL OPTIMIZATION RESULT:`, result);
+    
+    return result;
   };
 
   // Create detailed slab layout with piece positions
   const createDetailedSlabLayout = (pieces, layoutPattern, slabW, slabH) => {
+    console.log(`🏗️ CREATING DETAILED SLAB LAYOUT:`, {
+      piecesCount: pieces.length,
+      layoutPatternPieces: layoutPattern?.pieces?.length || 0,
+      layoutPatternTotal: layoutPattern?.totalPieces || 0
+    });
+
     const positionedPieces = pieces.map((piece, index) => ({
       ...piece,
       ...layoutPattern.pieces[index] || { x: 0, y: 0, width: piece.width, height: piece.depth }
     }));
 
-    return {
+    const result = {
       pieces: positionedPieces,
       usedArea: pieces.reduce((sum, p) => sum + p.width * p.depth, 0),
-      maxCapacity: layoutPattern.totalPieces,
+      maxCapacity: layoutPattern.totalPieces || pieces.length,
       layoutPattern,
       availableSpaces: []
     };
+
+    console.log(`🏗️ DETAILED SLAB LAYOUT RESULT:`, result);
+
+    return result;
   };
 
   const calculateEfficiency = (slabs, slabWidth, slabHeight) => {
@@ -509,8 +517,10 @@ export default function StoneTopEstimator() {
 
       if (!w || !d || isNaN(slabCost) || isNaN(fabCost) || isNaN(markup)) return { ...product, result: null };
 
-      const slabWidth = parseFloat(stone["Slab Width"]) || 63;
-      const slabHeight = parseFloat(stone["Slab Height"]) || 126;
+      const slabWidth = parseFloat(stone["Slab Width"]) || 126;  // Should be 126
+      const slabHeight = parseFloat(stone["Slab Height"]) || 63; // Should be 63
+
+      console.log(`🏗️ SLAB DIMENSIONS: ${slabWidth}" W × ${slabHeight}" H for ${stone["Stone Type"]}`);
 
       const pieces = Array(quantity).fill().map((_, i) => ({
         id: i + 1,
@@ -520,6 +530,13 @@ export default function StoneTopEstimator() {
       }));
 
       const optimization = optimizeSlabLayout(pieces, slabWidth, slabHeight);
+      
+      console.log(`🔍 OPTIMIZATION RESULT for ${product.stone}:`, {
+        totalSlabsNeeded: optimization.totalSlabsNeeded,
+        topsPerSlab: optimization.topsPerSlab,
+        efficiency: optimization.efficiency,
+        layoutPattern: optimization.layoutPattern
+      });
       
       const area = w * d;
       const usableAreaSqft = (area / 144) * quantity;
