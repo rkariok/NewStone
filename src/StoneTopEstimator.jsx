@@ -1,5 +1,47 @@
-import { useState, useEffect } from 'react';
+function mixedOrientationTopsPerSlab(slabWidth, slabHeight, topWidth, topHeight, kerf = 0.25) {
+  let placements = 0;
+  const placed = [];
+
+  function tryPlace(w, h) {
+    outer: for (let y = 0; y <= slabHeight - h; y += kerf) {
+      for (let x = 0; x <= slabWidth - w; x += kerf) {
+        let fits = true;
+        for (const p of placed) {
+          if (
+            x < p.x + p.w + kerf &&
+            x + w + kerf > p.x &&
+            y < p.y + p.h + kerf &&
+            y + h + kerf > p.y
+          ) {
+            fits = false;
+            break;
+          }
+        }
+        if (fits) {
+          placed.push({ x, y, w, h });
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  while (true) {
+    const placedNormal = tryPlace(topWidth, topHeight);
+    const placedRotated = !placedNormal && tryPlace(topHeight, topWidth);
+    if (placedNormal || placedRotated) {
+      placements++;
+    } else {
+      break;
+    }
+  }
+
+  return placements;
+}
+
 import html2pdf from 'html2pdf.js';
+import { useState, useEffect } from 'react';
+
 
 export default function StoneTopEstimator() {
   const [stoneOptions, setStoneOptions] = useState([]);
