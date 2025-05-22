@@ -976,7 +976,7 @@ export default function StoneTopEstimator() {
               rows={2}
             />
 
-            {/* Layout Preview for Individual Product - SIMPLIFIED AND FIXED */}
+            {/* Layout Preview for Individual Product - CLEAN VERSION */}
             {showLayoutPreviews && product.stone && product.width && product.depth && product.result && (
               <div className="bg-white border rounded-lg p-4 mt-4">
                 <h5 className="font-semibold mb-2 text-sm">
@@ -990,7 +990,7 @@ export default function StoneTopEstimator() {
                       const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
                       const slabWidth = parseFloat(slabData?.["Slab Width"]) || 126;
                       const slabHeight = parseFloat(slabData?.["Slab Height"]) || 63;
-                      const scale = 2.5; // Fixed scale for simplicity
+                      const scale = 2.5;
                       const displayWidth = slabWidth * scale;
                       const displayHeight = slabHeight * scale;
                       
@@ -998,20 +998,16 @@ export default function StoneTopEstimator() {
                       const pieceWidth = parseFloat(product.width);
                       const pieceHeight = parseFloat(product.depth);
                       
-                      console.log('Creating layout for:', { pieceWidth, pieceHeight, slabWidth, slabHeight, topsPerSlab });
-                      
-                      // Simple layout generation for 8-piece case
                       const pieces = [];
                       
                       if (pieceWidth === 24 && pieceHeight === 36 && topsPerSlab === 8) {
-                        // 3 horizontal pieces (36×24) in top row
+                        // 8-piece layout: 3 horizontal + 5 vertical
                         pieces.push(
                           { x: 0, y: 0, width: 36, height: 24, color: 'orange', label: '1' },
                           { x: 36.125, y: 0, width: 36, height: 24, color: 'orange', label: '2' },
                           { x: 72.25, y: 0, width: 36, height: 24, color: 'orange', label: '3' }
                         );
                         
-                        // 5 vertical pieces (24×36) in bottom row
                         const startY = 24.125;
                         pieces.push(
                           { x: 0, y: startY, width: 24, height: 36, color: 'blue', label: '4' },
@@ -1021,10 +1017,8 @@ export default function StoneTopEstimator() {
                           { x: 96.5, y: startY, width: 24, height: 36, color: 'blue', label: '8' }
                         );
                       } else {
-                        // Simple single orientation layout for other cases
+                        // Standard layout for other cases
                         const cols = Math.floor(slabWidth / pieceWidth);
-                        const rows = Math.ceil(topsPerSlab / cols);
-                        
                         for (let i = 0; i < topsPerSlab; i++) {
                           const row = Math.floor(i / cols);
                           const col = i % cols;
@@ -1039,14 +1033,11 @@ export default function StoneTopEstimator() {
                         }
                       }
                       
-                      console.log('Generated pieces:', pieces);
-                      
                       return (
                         <div 
                           className="relative border-2 border-gray-800 bg-stone-200"
                           style={{ width: displayWidth, height: displayHeight }}
                         >
-                          {/* Render pieces */}
                           {pieces.map((piece, index) => (
                             <div
                               key={index}
@@ -1070,7 +1061,6 @@ export default function StoneTopEstimator() {
                             </div>
                           ))}
                           
-                          {/* Slab dimensions */}
                           <div className="absolute -bottom-6 left-0 right-0 text-center text-sm text-gray-700">
                             {slabWidth}" × {slabHeight}"
                           </div>
