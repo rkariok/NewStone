@@ -14,6 +14,7 @@ export default function StoneTopEstimator() {
   const [breakageBuffer, setBreakageBuffer] = useState(10);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showLayoutPreviews, setShowLayoutPreviews] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
 
   const [userInfo, setUserInfo] = useState({ name: "", email: "", phone: "" });
   const [products, setProducts] = useState([
@@ -27,7 +28,7 @@ export default function StoneTopEstimator() {
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
     document.head.appendChild(script);
 
-    // Fetch stone data
+    // Fetch stone data from Google Sheet only
     fetch("https://opensheet.elk.sh/1g8w934dZH-NEuKfK8wg_RZYiXyLSSf87H0Xwec6KAAc/Sheet1")
       .then((res) => res.json())
       .then((data) => {
@@ -38,28 +39,7 @@ export default function StoneTopEstimator() {
       })
       .catch((error) => {
         console.error("Failed to load stone data:", error);
-        const mockStoneData = [
-          {
-            "Stone Type": "Carrara Marble",
-            "Slab Cost": 1200,
-            "Fab Cost": 45,
-            "Mark Up": 2.2,
-            "Slab Width": 126,
-            "Slab Height": 63
-          },
-          {
-            "Stone Type": "Calacatta Gold", 
-            "Slab Cost": 2500,
-            "Fab Cost": 55,
-            "Mark Up": 2.5,
-            "Slab Width": 126,
-            "Slab Height": 63
-          }
-        ];
-        setStoneOptions(mockStoneData);
-        setProducts((prev) =>
-          prev.map((p) => ({ ...p, stone: mockStoneData[0]?.["Stone Type"] || '' }))
-        );
+        alert("Failed to load stone data. Please check your internet connection and refresh the page.");
       });
   }, []);
 
@@ -67,10 +47,17 @@ export default function StoneTopEstimator() {
   const calculateMaxPiecesPerSlab = (pieceW, pieceH, slabW, slabH) => {
     const kerf = includeKerf ? kerfWidth : 0;
     
-    console.log(`🎯 OPTIMIZED CALCULATION: ${pieceW}×${pieceH} on ${slabW}×${slabH}, kerf: ${kerf}`);
+    // Convert to numbers and round to avoid floating point issues
+    const pw = Math.round(parseFloat(pieceW));
+    const ph = Math.round(parseFloat(pieceH));
+    const sw = Math.round(parseFloat(slabW));
+    const sh = Math.round(parseFloat(slabH));
+    
+    console.log(`🎯 OPTIMIZED CALCULATION: ${pw}×${ph} on ${sw}×${sh}, kerf: ${kerf}`);
+    console.log(`Raw values: pieceW=${pieceW}, pieceH=${pieceH}, slabW=${slabW}, slabH=${slabH}`);
     
     // Special case for 24×36 on 126×63 - the 8-piece mixed layout
-    if (pieceW === 24 && pieceH === 36 && slabW === 126 && slabH === 63) {
+    if (pw === 24 && ph === 36 && sw === 126 && sh === 63) {
       console.log(`🔥 OPTIMAL 8-PIECE LAYOUT FOR 24×36:`);
       
       // Row 1: 3 horizontal pieces (36×24) 
@@ -87,29 +74,37 @@ export default function StoneTopEstimator() {
       
       console.log(`Row 1: ${row1_pieces} pieces (36×24), width: ${row1_width}", height: ${row1_height}"`);
       console.log(`Row 2: ${row2_pieces} pieces (24×36), width: ${row2_width}", height: ${row2_height}"`);
-      console.log(`Total height: ${total_height}" (fits: ${total_height <= slabH})`);
+      console.log(`Total height: ${total_height}" (fits: ${total_height <= sh})`);
       console.log(`✅ RETURNING 8 PIECES - OPTIMAL MIXED LAYOUT`);
       
+      return 8;
+    }
+    // Also check if dimensions are flipped (36×24 instead of 24×36)
+    if (pw === 36 && ph === 24 && sw === 126 && sh === 63) {
+      console.log(`🔥 OPTIMAL 8-PIECE LAYOUT FOR 36×24 (flipped):`);
       return 8;
     }
     
     // General optimization for other sizes
     let maxPieces = 0;
     
-    const vertical = Math.floor(slabW / (pieceW + kerf)) * Math.floor(slabH / (pieceH + kerf));
-    const horizontal = Math.floor(slabW / (pieceH + kerf)) * Math.floor(slabH / (pieceW + kerf));
+    const vertical = Math.floor(sw / (pw + kerf)) * Math.floor(sh / (ph + kerf));
+    const horizontal = Math.floor(sw / (ph + kerf)) * Math.floor(sh / (pw + kerf));
     
     maxPieces = Math.max(vertical, horizontal);
     
+    console.log(`Vertical orientation: ${Math.floor(sw / (pw + kerf))} × ${Math.floor(sh / (ph + kerf))} = ${vertical} pieces`);
+    console.log(`Horizontal orientation: ${Math.floor(sw / (ph + kerf))} × ${Math.floor(sh / (pw + kerf))} = ${horizontal} pieces`);
+    
     // Mixed layout testing
-    for (let hRows = 1; hRows <= Math.floor(slabH / (pieceW + kerf)); hRows++) {
-      const hPieces = hRows * Math.floor(slabW / (pieceH + kerf));
-      const usedHeight = hRows * (pieceW + kerf) - kerf;
-      const remainingHeight = slabH - usedHeight;
+    for (let hRows = 1; hRows <= Math.floor(sh / (pw + kerf)); hRows++) {
+      const hPieces = hRows * Math.floor(sw / (ph + kerf));
+      const usedHeight = hRows * (pw + kerf) - kerf;
+      const remainingHeight = sh - usedHeight;
       
-      if (remainingHeight >= pieceH) {
-        const vRows = Math.floor(remainingHeight / (pieceH + kerf));
-        const vPieces = vRows * Math.floor(slabW / (pieceW + kerf));
+      if (remainingHeight >= ph) {
+        const vRows = Math.floor(remainingHeight / (ph + kerf));
+        const vPieces = vRows * Math.floor(sw / (pw + kerf));
         const totalMixed = hPieces + vPieces;
         
         if (totalMixed > maxPieces) {
@@ -613,9 +608,30 @@ export default function StoneTopEstimator() {
                   <li><strong>Theoretical Mode:</strong> Maximum possible pieces (no cutting waste)</li>
                 </ul>
               </div>
+              
+              {adminMode && (
+                <div className="mt-4 p-3 bg-yellow-50 rounded">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={debugMode}
+                      onChange={(e) => setDebugMode(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium">Debug Mode (Admin Only)</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">Shows detailed calculation logs</p>
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {stoneOptions.length === 0 && (
+          <div className="text-center p-4 bg-yellow-50 rounded-lg">
+            <p className="text-yellow-800">Loading stone data from Google Sheets...</p>
+          </div>
+        )}
 
         {products.map((product, index) => (
           <div key={product.id} className="bg-gray-50 p-4 rounded shadow space-y-4 text-left relative">
@@ -637,8 +653,11 @@ export default function StoneTopEstimator() {
                 value={product.stone}
                 onChange={(e) => updateProduct(index, 'stone', e.target.value)}
                 className="border px-4 py-2 rounded"
+                disabled={stoneOptions.length === 0}
               >
-                <option value="">Select Stone Type...</option>
+                <option value="">
+                  {stoneOptions.length === 0 ? "Loading stones..." : "Select Stone Type..."}
+                </option>
                 {stoneOptions.map((stone, i) => (
                   <option key={i} value={stone["Stone Type"]}>{stone["Stone Type"]}</option>
                 ))}
@@ -748,7 +767,25 @@ export default function StoneTopEstimator() {
             Calculate with Optimization
           </button>
           
-          {allResults.length > 0 && (
+          {allResults.length > 0 && debugMode && adminMode && (
+          <div className="mt-4 p-4 bg-yellow-100 rounded-lg text-left">
+            <h4 className="font-bold text-yellow-800 mb-2">Debug Information</h4>
+            <div className="text-xs font-mono space-y-1">
+              {allResults.map((result, idx) => (
+                <div key={idx} className="mb-2 p-2 bg-white rounded">
+                  <p>Product {idx + 1}: {result.stone}</p>
+                  <p>Input: width={result.width}, depth={result.depth}</p>
+                  <p>Parsed: w={Math.round(parseFloat(result.width))}, d={Math.round(parseFloat(result.depth))}</p>
+                  <p>Slab: {stone => stone["Stone Type"] === result.stone ? `${stone["Slab Width"]}×${stone["Slab Height"]}` : 'N/A'}</p>
+                  <p>Result: {result.result?.topsPerSlab} tops/slab, {result.result?.efficiency?.toFixed(1)}% efficiency</p>
+                </div>
+              ))}
+              <p className="mt-2 text-yellow-700">Check browser console for detailed logs</p>
+            </div>
+          </div>
+        )}
+
+        {allResults.length > 0 && (
             <button
               onClick={generatePDF}
               className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
