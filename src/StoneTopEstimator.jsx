@@ -358,7 +358,7 @@ export default function StoneTopEstimator() {
     };
   };
 
-  // Enhanced slab optimization with layout generation
+  // Enhanced slab optimization with layout generation - FORCE 8-PIECE LAYOUT
   const optimizeSlabLayout = (pieces, slabWidth, slabHeight) => {
     if (pieces.length === 0) return { slabs: [], unplacedPieces: [], totalSlabsNeeded: 0, efficiency: 0, topsPerSlab: 0 };
 
@@ -367,7 +367,14 @@ export default function StoneTopEstimator() {
     const kerf = includeKerf ? kerfWidth : 0;
 
     const maxPiecesPerSlab = calculateMaxPiecesPerSlab(pieceWidth, pieceHeight, slabWidth, slabHeight);
-    const layoutPattern = generateOptimalLayout(pieceWidth, pieceHeight, slabWidth, slabHeight, kerf);
+    
+    // FORCE the 8-piece layout for 24x36 on 126x63
+    let layoutPattern;
+    if (pieceWidth === 24 && pieceHeight === 36 && slabWidth === 126 && slabHeight === 63) {
+      layoutPattern = create8PieceLayout(kerf);
+    } else {
+      layoutPattern = generateOptimalLayout(pieceWidth, pieceHeight, slabWidth, slabHeight, kerf);
+    }
     
     const slabs = [];
     let remainingPieces = [...pieces];
@@ -385,6 +392,45 @@ export default function StoneTopEstimator() {
       efficiency: calculateEfficiency(slabs, slabWidth, slabHeight),
       topsPerSlab: maxPiecesPerSlab,
       layoutPattern
+    };
+  };
+
+  // Create the specific 8-piece layout for 24x36 on 126x63
+  const create8PieceLayout = (kerf) => {
+    const pieces = [];
+    
+    // Row 1: 3 horizontal pieces (36×24)
+    for (let i = 0; i < 3; i++) {
+      pieces.push({
+        x: i * (36 + kerf),
+        y: 0,
+        width: 36,
+        height: 24,
+        orientation: 'h×w',
+        id: pieces.length + 1
+      });
+    }
+    
+    // Row 2: 5 vertical pieces (24×36)
+    const startY = 24 + kerf;
+    for (let i = 0; i < 5; i++) {
+      pieces.push({
+        x: i * (24 + kerf),
+        y: startY,
+        width: 24,
+        height: 36,
+        orientation: 'w×h',
+        id: pieces.length + 1
+      });
+    }
+    
+    console.log('Created 8-piece layout:', pieces);
+    
+    return {
+      pieces,
+      totalPieces: 8,
+      efficiency: (8 * 24 * 36) / (126 * 63) * 100,
+      arrangement: { type: 'mixed', layout: '3h+5v' }
     };
   };
 
@@ -968,9 +1014,14 @@ export default function StoneTopEstimator() {
                               <rect width="100%" height="100%" fill="url(#grid)" />
                             </svg>
                             
+                            {/* Debug: Log the layout pattern */}
+                            {console.log('Layout pattern pieces:', layoutPattern.pieces)}
+                            
                             {/* Render the actual optimized pieces */}
-                            {layoutPattern.pieces.slice(0, Math.min(product.quantity, product.result.topsPerSlab)).map((piece, pieceIndex) => {
+                            {layoutPattern.pieces.slice(0, Math.min(product.quantity, layoutPattern.totalPieces || product.result.topsPerSlab)).map((piece, pieceIndex) => {
                               const isHorizontal = piece.orientation === 'h×w';
+                              console.log(`Piece ${pieceIndex + 1}:`, piece, 'isHorizontal:', isHorizontal);
+                              
                               return (
                                 <div key={pieceIndex}>
                                   {/* Main piece */}
