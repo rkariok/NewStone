@@ -65,36 +65,6 @@ export default function StoneTopEstimator() {
       });
   }, []);
 
-  // Enhanced slab optimization logic - finds maximum tops per slab
-  const optimizeSlabLayout = (pieces, slabWidth, slabHeight) => {
-    if (pieces.length === 0) return { slabs: [], unplacedPieces: [], totalSlabsNeeded: 0, efficiency: 0 };
-
-    // Get piece dimensions (assuming all pieces are the same size)
-    const pieceWidth = pieces[0].width;
-    const pieceHeight = pieces[0].depth;
-
-    // Calculate maximum pieces per slab using both orientations
-    const maxPiecesPerSlab = calculateMaxPiecesPerSlab(pieceWidth, pieceHeight, slabWidth, slabHeight);
-    
-    // Group pieces into slabs
-    const slabs = [];
-    let remainingPieces = [...pieces];
-
-    while (remainingPieces.length > 0) {
-      const piecesForThisSlab = remainingPieces.splice(0, Math.min(maxPiecesPerSlab, remainingPieces.length));
-      const slabLayout = createOptimalSlabLayout(piecesForThisSlab, pieceWidth, pieceHeight, slabWidth, slabHeight);
-      slabs.push(slabLayout);
-    }
-
-    return {
-      slabs,
-      unplacedPieces: [],
-      totalSlabsNeeded: slabs.length,
-      efficiency: calculateEfficiency(slabs, slabWidth, slabHeight),
-      topsPerSlab: maxPiecesPerSlab
-    };
-  };
-
   // Calculate maximum pieces that can fit per slab with mixed orientations
   const calculateMaxPiecesPerSlab = (pieceW, pieceH, slabW, slabH) => {
     // Try all possible combinations of orientations
@@ -142,6 +112,36 @@ export default function StoneTopEstimator() {
     return maxPieces;
   };
 
+  // Enhanced slab optimization logic - finds maximum tops per slab
+  const optimizeSlabLayout = (pieces, slabWidth, slabHeight) => {
+    if (pieces.length === 0) return { slabs: [], unplacedPieces: [], totalSlabsNeeded: 0, efficiency: 0, topsPerSlab: 0 };
+
+    // Get piece dimensions (assuming all pieces are the same size)
+    const pieceWidth = pieces[0].width;
+    const pieceHeight = pieces[0].depth;
+
+    // Calculate maximum pieces per slab using both orientations
+    const maxPiecesPerSlab = calculateMaxPiecesPerSlab(pieceWidth, pieceHeight, slabWidth, slabHeight);
+    
+    // Group pieces into slabs
+    const slabs = [];
+    let remainingPieces = [...pieces];
+
+    while (remainingPieces.length > 0) {
+      const piecesForThisSlab = remainingPieces.splice(0, Math.min(maxPiecesPerSlab, remainingPieces.length));
+      const slabLayout = createOptimalSlabLayout(piecesForThisSlab, pieceWidth, pieceHeight, slabWidth, slabHeight);
+      slabs.push(slabLayout);
+    }
+
+    return {
+      slabs,
+      unplacedPieces: [],
+      totalSlabsNeeded: slabs.length,
+      efficiency: calculateEfficiency(slabs, slabWidth, slabHeight),
+      topsPerSlab: maxPiecesPerSlab
+    };
+  };
+
   // Create optimal layout for a single slab
   const createOptimalSlabLayout = (pieces, pieceW, pieceH, slabW, slabH) => {
     const maxPieces = calculateMaxPiecesPerSlab(pieceW, pieceH, slabW, slabH);
@@ -150,91 +150,13 @@ export default function StoneTopEstimator() {
     return {
       pieces: pieces.map((piece, i) => ({
         ...piece,
-        x: 0, // Simplified positioning - in real implementation, calculate actual positions
+        x: 0,
         y: 0
       })),
       usedArea: totalUsedArea,
       maxCapacity: maxPieces,
-      availableSpaces: [] // Simplified for this implementation
+      availableSpaces: []
     };
-  };
-
-  const calculateEfficiency = (slabs, slabWidth, slabHeight) => {
-    const totalSlabArea = slabs.length * slabWidth * slabHeight;
-    const totalUsedArea = slabs.reduce((sum, slab) => sum + slab.usedArea, 0);
-    return totalSlabArea > 0 ? (totalUsedArea / totalSlabArea) * 100 : 0;
-  };
-
-  const canPlacePiece = (slab, piece, slabWidth, slabHeight) => {
-    return slab.availableSpaces.some(space => 
-      piece.width <= space.width && piece.depth <= space.height
-    );
-  };
-
-  const placePiece = (slab, piece) => {
-    const bestSpace = slab.availableSpaces
-      .filter(space => piece.width <= space.width && piece.depth <= space.height)
-      .sort((a, b) => (a.width * a.height) - (b.width * b.height))[0];
-
-    if (bestSpace) {
-      piece.x = bestSpace.x;
-      piece.y = bestSpace.y;
-      slab.pieces.push(piece);
-      slab.usedArea += piece.width * piece.depth;
-
-      const spaceIndex = slab.availableSpaces.indexOf(bestSpace);
-      slab.availableSpaces.splice(spaceIndex, 1);
-
-      if (bestSpace.width > piece.width) {
-        slab.availableSpaces.push({
-          x: bestSpace.x + piece.width,
-          y: bestSpace.y,
-          width: bestSpace.width - piece.width,
-          height: piece.depth
-        });
-      }
-
-      if (bestSpace.height > piece.depth) {
-        slab.availableSpaces.push({
-          x: bestSpace.x,
-          y: bestSpace.y + piece.depth,
-          width: piece.width,
-          height: bestSpace.height - piece.depth
-        });
-      }
-
-      mergeSpaces(slab.availableSpaces);
-    }
-  };
-
-  const updateAvailableSpaces = (slab, slabWidth, slabHeight) => {
-    slab.availableSpaces = slab.availableSpaces.filter(space => 
-      space.width > 0 && space.height > 0 && 
-      space.x + space.width <= slabWidth && 
-      space.y + space.height <= slabHeight
-    );
-  };
-
-  const mergeSpaces = (spaces) => {
-    for (let i = 0; i < spaces.length; i++) {
-      for (let j = i + 1; j < spaces.length; j++) {
-        const space1 = spaces[i];
-        const space2 = spaces[j];
-        
-        if (space1.y === space2.y && space1.height === space2.height &&
-            space1.x + space1.width === space2.x) {
-          space1.width += space2.width;
-          spaces.splice(j, 1);
-          j--;
-        }
-        else if (space1.x === space2.x && space1.width === space2.width &&
-                 space1.y + space1.height === space2.y) {
-          space1.height += space2.height;
-          spaces.splice(j, 1);
-          j--;
-        }
-      }
-    }
   };
 
   const calculateEfficiency = (slabs, slabWidth, slabHeight) => {
@@ -295,6 +217,8 @@ export default function StoneTopEstimator() {
   };
 
   const calculateAll = () => {
+    console.log("Calculate button clicked!");
+    
     const results = products.map((product) => {
       const stone = stoneOptions.find(s => s["Stone Type"] === product.stone);
       if (!stone) return { ...product, result: null };
@@ -318,7 +242,8 @@ export default function StoneTopEstimator() {
         name: `${product.stone} #${i + 1}`
       }));
 
-      const optimization = optimizeCutList(pieces, slabWidth, slabHeight);
+      // Run slab optimization
+      const optimization = optimizeSlabLayout(pieces, slabWidth, slabHeight);
       
       const area = w * d;
       const usableAreaSqft = (area / 144) * quantity;
@@ -329,8 +254,6 @@ export default function StoneTopEstimator() {
       const fabricationCost = usableAreaSqft * fabCost;
       const rawCost = materialCost + fabricationCost;
       const finalPrice = rawCost * markup;
-
-      const topsPerSlab = Math.floor((slabWidth * slabHeight) / area);
 
       return {
         ...product,
@@ -365,7 +288,7 @@ export default function StoneTopEstimator() {
         "Edge": p.edgeDetail || "",
         "Area": ((parseFloat(p.width || 0) * parseFloat(p.depth || 0)) / 144 * parseInt(p.quantity || 0)).toFixed(2),
         "Tops/Slab": p.result?.topsPerSlab || 0,
-        "Slabs Needed": p.result?.totalSlabsNeeded || Math.ceil(parseInt(p.quantity || 0) / (p.result?.optimization?.topsPerSlab || 1)),
+        "Slabs Needed": p.result?.totalSlabsNeeded || Math.ceil(parseInt(p.quantity || 0) / (p.result?.topsPerSlab || 1)),
         "Efficiency": p.result?.efficiency ? p.result.efficiency.toFixed(1) + "%" : "N/A",
         "Material": parseFloat(p.result?.materialCost || 0).toFixed(2),
         "Fab": parseFloat(p.result?.fabricationCost || 0).toFixed(2),
@@ -722,7 +645,6 @@ export default function StoneTopEstimator() {
                         {p.result?.efficiency.toFixed(1)}%
                       </span>
                     </td>
-                    <td className="border px-4 py-2">${p.result?.materialCost.toFixed(2)}</td>
                     <td className="border px-4 py-2">${p.result?.fabricationCost.toFixed(2)}</td>
                     <td className="border px-4 py-2">${p.result?.rawCost.toFixed(2)}</td>
                     <td className="border px-4 py-2 font-semibold text-green-600">
