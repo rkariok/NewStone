@@ -159,6 +159,12 @@ export default function StoneTopEstimator() {
     };
   };
 
+  const calculateEfficiency = (slabs, slabWidth, slabHeight) => {
+    const totalSlabArea = slabs.length * slabWidth * slabHeight;
+    const totalUsedArea = slabs.reduce((sum, slab) => sum + slab.usedArea, 0);
+    return totalSlabArea > 0 ? (totalUsedArea / totalSlabArea) * 100 : 0;
+  };
+
   const canPlacePiece = (slab, piece, slabWidth, slabHeight) => {
     return slab.availableSpaces.some(space => 
       piece.width <= space.width && piece.depth <= space.height
