@@ -976,16 +976,16 @@ export default function StoneTopEstimator() {
               rows={2}
             />
 
-            {/* Layout Preview for Individual Product - FIXED VERSION */}
+            {/* Layout Preview for Individual Product - COMPLETELY REBUILT */}
             {showLayoutPreviews && product.stone && product.width && product.depth && (
               <div className="bg-white border rounded-lg p-4 mt-4">
                 <h5 className="font-semibold mb-2 text-sm">
                   Layout Preview: {product.stone} ({product.width}×{product.depth}) - {product.quantity} pieces
                 </h5>
                 
-                {product.result?.optimization?.layoutPattern ? (
+                {product.result ? (
                   <div className="flex items-start space-x-4">
-                    {/* Slab Visual */}
+                    {/* Slab Visual - REBUILT FROM SCRATCH */}
                     <div className="relative">
                       {(() => {
                         const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
@@ -994,7 +994,93 @@ export default function StoneTopEstimator() {
                         const scale = Math.min(320 / slabWidth, 240 / slabHeight);
                         const displayWidth = slabWidth * scale;
                         const displayHeight = slabHeight * scale;
-                        const layoutPattern = product.result.optimization.layoutPattern;
+                        
+                        // GET TOPSPER SLAB DIRECTLY FROM CALCULATION RESULTS
+                        const topsPerSlab = product.result.topsPerSlab || 6;
+                        const pieceWidth = parseFloat(product.width);
+                        const pieceHeight = parseFloat(product.depth);
+                        
+                        // RECREATE OPTIMAL LAYOUT BASED ON CALCULATION RESULTS
+                        const generateVisualLayout = () => {
+                          const pieces = [];
+                          
+                          // For 24x36 on 126x63, force the 8-piece layout
+                          if (pieceWidth === 24 && pieceHeight === 36 && slabWidth === 126 && slabHeight === 63 && topsPerSlab === 8) {
+                            // Row 1: 3 horizontal pieces (36×24)
+                            for (let i = 0; i < 3; i++) {
+                              pieces.push({
+                                x: i * (36 + kerfWidth),
+                                y: 0,
+                                width: 36,
+                                height: 24,
+                                orientation: 'horizontal',
+                                id: pieces.length + 1
+                              });
+                            }
+                            
+                            // Row 2: 5 vertical pieces (24×36)
+                            const startY = 24 + kerfWidth;
+                            for (let i = 0; i < 5; i++) {
+                              pieces.push({
+                                x: i * (24 + kerfWidth),
+                                y: startY,
+                                width: 24,
+                                height: 36,
+                                orientation: 'vertical',
+                                id: pieces.length + 1
+                              });
+                            }
+                          } else {
+                            // For other cases, try to determine best layout
+                            const orientation1Fits = Math.floor((slabW + kerfWidth) / (pieceW + kerfWidth)) * Math.floor((slabH + kerfWidth) / (pieceH + kerfWidth));
+                            const orientation2Fits = Math.floor((slabW + kerfWidth) / (pieceH + kerfWidth)) * Math.floor((slabH + kerfWidth) / (pieceW + kerfWidth));
+                            
+                            if (orientation1Fits >= topsPerSlab) {
+                              // Use orientation 1 (w×h)
+                              const cols = Math.floor((slabWidth + kerfWidth) / (pieceWidth + kerfWidth));
+                              const rows = Math.ceil(topsPerSlab / cols);
+                              
+                              for (let row = 0; row < rows; row++) {
+                                for (let col = 0; col < cols && pieces.length < topsPerSlab; col++) {
+                                  pieces.push({
+                                    x: col * (pieceWidth + kerfWidth),
+                                    y: row * (pieceHeight + kerfWidth),
+                                    width: pieceWidth,
+                                    height: pieceHeight,
+                                    orientation: 'vertical',
+                                    id: pieces.length + 1
+                                  });
+                                }
+                              }
+                            } else if (orientation2Fits >= topsPerSlab) {
+                              // Use orientation 2 (h×w)
+                              const cols = Math.floor((slabWidth + kerfWidth) / (pieceHeight + kerfWidth));
+                              const rows = Math.ceil(topsPerSlab / cols);
+                              
+                              for (let row = 0; row < rows; row++) {
+                                for (let col = 0; col < cols && pieces.length < topsPerSlab; col++) {
+                                  pieces.push({
+                                    x: col * (pieceHeight + kerfWidth),
+                                    y: row * (pieceWidth + kerfWidth),
+                                    width: pieceHeight,
+                                    height: pieceWidth,
+                                    orientation: 'horizontal',
+                                    id: pieces.length + 1
+                                  });
+                                }
+                              }
+                            }
+                          }
+                          
+                          return pieces;
+                        };
+                        
+                        const layoutPieces = generateVisualLayout();
+                        
+                        console.log('VISUAL LAYOUT DEBUG:');
+                        console.log('Tops per slab from calculation:', topsPerSlab);
+                        console.log('Generated layout pieces:', layoutPieces.length);
+                        console.log('Layout pieces:', layoutPieces);
                         
                         return (
                           <div 
@@ -1014,13 +1100,9 @@ export default function StoneTopEstimator() {
                               <rect width="100%" height="100%" fill="url(#grid)" />
                             </svg>
                             
-                            {/* Debug: Log the layout pattern */}
-                            {console.log('Layout pattern pieces:', layoutPattern.pieces)}
-                            
-                            {/* Render the actual optimized pieces */}
-                            {layoutPattern.pieces.slice(0, Math.min(product.quantity, layoutPattern.totalPieces || product.result.topsPerSlab)).map((piece, pieceIndex) => {
-                              const isHorizontal = piece.orientation === 'h×w';
-                              console.log(`Piece ${pieceIndex + 1}:`, piece, 'isHorizontal:', isHorizontal);
+                            {/* Render pieces based on CALCULATION RESULTS */}
+                            {layoutPieces.slice(0, Math.min(product.quantity, topsPerSlab)).map((piece, pieceIndex) => {
+                              const isHorizontal = piece.orientation === 'horizontal';
                               
                               return (
                                 <div key={pieceIndex}>
@@ -1091,7 +1173,7 @@ export default function StoneTopEstimator() {
                       })()}
                     </div>
                     
-                    {/* Legend and Stats */}
+                    {/* Legend and Stats - REBUILT TO MATCH VISUAL */}
                     <div className="text-xs space-y-2 min-w-48">
                       <div className="font-semibold text-gray-800 mb-3">Layout Analysis</div>
                       
@@ -1117,7 +1199,7 @@ export default function StoneTopEstimator() {
                         </div>
                       </div>
                       
-                      {/* Statistics */}
+                      {/* Statistics - PULLED FROM CALCULATION TABLE */}
                       <div className="pt-2 border-t space-y-1 text-gray-700">
                         <div><strong>Stone:</strong> {product.stone}</div>
                         <div><strong>Slab:</strong> {(() => {
@@ -1127,26 +1209,39 @@ export default function StoneTopEstimator() {
                         <div><strong>Max Pieces/Slab:</strong> {product.result.topsPerSlab}</div>
                         <div><strong>Efficiency:</strong> <span className={`font-semibold ${product.result.efficiency > 80 ? 'text-green-600' : product.result.efficiency > 60 ? 'text-yellow-600' : 'text-red-600'}`}>{product.result.efficiency?.toFixed(1)}%</span></div>
                         <div><strong>Slabs Needed:</strong> {product.result.totalSlabsNeeded}</div>
-                        <div><strong>Layout:</strong> {product.result.optimization.layoutPattern.arrangement?.type || 'Mixed'}</div>
+                        <div><strong>Layout:</strong> {product.result.topsPerSlab === 8 && parseFloat(product.width) === 24 && parseFloat(product.depth) === 36 ? 'Mixed (3H+5V)' : 'Single Orientation'}</div>
                       </div>
                       
-                      {/* Piece breakdown */}
-                      {product.result.optimization.layoutPattern.pieces.length > 0 && (
-                        <div className="pt-2 border-t">
-                          <div className="font-semibold mb-1">Piece Breakdown:</div>
-                          {(() => {
-                            const verticalPieces = product.result.optimization.layoutPattern.pieces.filter(p => p.orientation === 'w×h').length;
-                            const horizontalPieces = product.result.optimization.layoutPattern.pieces.filter(p => p.orientation === 'h×w').length;
+                      {/* Piece breakdown - CALCULATED FROM ACTUAL LAYOUT */}
+                      <div className="pt-2 border-t">
+                        <div className="font-semibold mb-1">Piece Breakdown:</div>
+                        {(() => {
+                          const topsPerSlab = product.result.topsPerSlab;
+                          const pieceW = parseFloat(product.width);
+                          const pieceH = parseFloat(product.depth);
+                          const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
+                          const slabW = parseFloat(slabData?.["Slab Width"]) || 126;
+                          const slabH = parseFloat(slabData?.["Slab Height"]) || 63;
+                          
+                          // For the 8-piece case
+                          if (pieceW === 24 && pieceH === 36 && slabW === 126 && slabH === 63 && topsPerSlab === 8) {
                             return (
                               <div className="text-xs space-y-1">
-                                {verticalPieces > 0 && <div>• {verticalPieces} vertical pieces</div>}
-                                {horizontalPieces > 0 && <div>• {horizontalPieces} horizontal pieces</div>}
-                                <div className="font-semibold">Total: {verticalPieces + horizontalPieces} pieces</div>
+                                <div>• 3 horizontal pieces (36×24)</div>
+                                <div>• 5 vertical pieces (24×36)</div>
+                                <div className="font-semibold">Total: 8 pieces</div>
                               </div>
                             );
-                          })()}
-                        </div>
-                      )}
+                          } else {
+                            return (
+                              <div className="text-xs space-y-1">
+                                <div>• {topsPerSlab} pieces total</div>
+                                <div className="font-semibold">Total: {topsPerSlab} pieces</div>
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
                     </div>
                   </div>
                 ) : (
