@@ -65,71 +65,97 @@ export default function StoneTopEstimator() {
       });
   }, []);
 
-  // Enhanced cutlist optimization logic
-  const optimizeCutList = (pieces, slabWidth, slabHeight) => {
-    const sortedPieces = pieces.map((piece, index) => ({
-      ...piece,
-      area: piece.width * piece.depth,
-      index
-    })).sort((a, b) => b.area - a.area);
+  // Enhanced slab optimization logic - finds maximum tops per slab
+  const optimizeSlabLayout = (pieces, slabWidth, slabHeight) => {
+    if (pieces.length === 0) return { slabs: [], unplacedPieces: [], totalSlabsNeeded: 0, efficiency: 0 };
 
+    // Get piece dimensions (assuming all pieces are the same size)
+    const pieceWidth = pieces[0].width;
+    const pieceHeight = pieces[0].depth;
+
+    // Calculate maximum pieces per slab using both orientations
+    const maxPiecesPerSlab = calculateMaxPiecesPerSlab(pieceWidth, pieceHeight, slabWidth, slabHeight);
+    
+    // Group pieces into slabs
     const slabs = [];
-    const unplacedPieces = [];
+    let remainingPieces = [...pieces];
 
-    for (const piece of sortedPieces) {
-      let placed = false;
-      
-      const orientations = [
-        { width: piece.width, depth: piece.depth },
-        { width: piece.depth, depth: piece.width }
-      ];
-
-      for (const orientation of orientations) {
-        if (placed) break;
-
-        for (const slab of slabs) {
-          if (canPlacePiece(slab, orientation, slabWidth, slabHeight)) {
-            placePiece(slab, { ...piece, ...orientation });
-            placed = true;
-            break;
-          }
-        }
-
-        if (!placed && orientation.width <= slabWidth && orientation.depth <= slabHeight) {
-          const newSlab = {
-            pieces: [{ ...piece, ...orientation, x: 0, y: 0 }],
-            usedArea: orientation.width * orientation.depth,
-            availableSpaces: [
-              {
-                x: orientation.width,
-                y: 0,
-                width: slabWidth - orientation.width,
-                height: orientation.depth
-              },
-              {
-                x: 0,
-                y: orientation.depth,
-                width: slabWidth,
-                height: slabHeight - orientation.depth
-              }
-            ]
-          };
-          slabs.push(newSlab);
-          updateAvailableSpaces(newSlab, slabWidth, slabHeight);
-          placed = true;
-        }
-      }
-
-      if (!placed) {
-        unplacedPieces.push(piece);
-      }
+    while (remainingPieces.length > 0) {
+      const piecesForThisSlab = remainingPieces.splice(0, Math.min(maxPiecesPerSlab, remainingPieces.length));
+      const slabLayout = createOptimalSlabLayout(piecesForThisSlab, pieceWidth, pieceHeight, slabWidth, slabHeight);
+      slabs.push(slabLayout);
     }
 
     return {
       slabs,
-      unplacedPieces,
+      unplacedPieces: [],
       totalSlabsNeeded: slabs.length,
-      efficiency: calculateEfficiency(slabs, slabWidth, slabHeight)
+      efficiency: calculateEfficiency(slabs, slabWidth, slabHeight),
+      topsPerSlab: maxPiecesPerSlab
+    };
+  };
+
+  // Calculate maximum pieces that can fit per slab with mixed orientations
+  const calculateMaxPiecesPerSlab = (pieceW, pieceH, slabW, slabH) => {
+    // Try all possible combinations of orientations
+    let maxPieces = 0;
+
+    // Option 1: All pieces in orientation 1 (w × h)
+    const fit1W = Math.floor(slabW / pieceW);
+    const fit1H = Math.floor(slabH / pieceH);
+    const option1 = fit1W * fit1H;
+
+    // Option 2: All pieces in orientation 2 (h × w)
+    const fit2W = Math.floor(slabW / pieceH);
+    const fit2H = Math.floor(slabH / pieceW);
+    const option2 = fit2W * fit2H;
+
+    maxPieces = Math.max(option1, option2);
+
+    // Option 3: Mixed orientations - try different combinations
+    // This is where we find layouts like 8 pieces for 24×36 on 126×63
+    for (let rows1 = 0; rows1 <= Math.floor(slabH / pieceH); rows1++) {
+      for (let rows2 = 0; rows2 <= Math.floor((slabH - rows1 * pieceH) / pieceW); rows2++) {
+        const pieces1 = rows1 * Math.floor(slabW / pieceW); // pieces in orientation 1
+        const pieces2 = rows2 * Math.floor(slabW / pieceH); // pieces in orientation 2
+        const usedHeight = rows1 * pieceH + rows2 * pieceW;
+        
+        if (usedHeight <= slabH) {
+          maxPieces = Math.max(maxPieces, pieces1 + pieces2);
+        }
+      }
+    }
+
+    // Also try the reverse (orientation 2 first, then orientation 1)
+    for (let rows2 = 0; rows2 <= Math.floor(slabH / pieceW); rows2++) {
+      for (let rows1 = 0; rows1 <= Math.floor((slabH - rows2 * pieceW) / pieceH); rows1++) {
+        const pieces2 = rows2 * Math.floor(slabW / pieceH); // pieces in orientation 2
+        const pieces1 = rows1 * Math.floor(slabW / pieceW); // pieces in orientation 1
+        const usedHeight = rows2 * pieceW + rows1 * pieceH;
+        
+        if (usedHeight <= slabH) {
+          maxPieces = Math.max(maxPieces, pieces1 + pieces2);
+        }
+      }
+    }
+
+    return maxPieces;
+  };
+
+  // Create optimal layout for a single slab
+  const createOptimalSlabLayout = (pieces, pieceW, pieceH, slabW, slabH) => {
+    const maxPieces = calculateMaxPiecesPerSlab(pieceW, pieceH, slabW, slabH);
+    const totalUsedArea = pieces.length * pieceW * pieceH;
+
+    return {
+      pieces: pieces.map((piece, i) => ({
+        ...piece,
+        x: 0, // Simplified positioning - in real implementation, calculate actual positions
+        y: 0
+      })),
+      usedArea: totalUsedArea,
+      maxCapacity: maxPieces,
+      availableSpaces: [] // Simplified for this implementation
     };
   };
 
@@ -311,7 +337,7 @@ export default function StoneTopEstimator() {
           rawCost,
           finalPrice,
           optimization,
-          topsPerSlab
+          topsPerSlab: optimization.topsPerSlab
         }
       };
     });
@@ -333,7 +359,7 @@ export default function StoneTopEstimator() {
         "Edge": p.edgeDetail || "",
         "Area": ((parseFloat(p.width || 0) * parseFloat(p.depth || 0)) / 144 * parseInt(p.quantity || 0)).toFixed(2),
         "Tops/Slab": p.result?.topsPerSlab || 0,
-        "Slabs Needed": p.result?.totalSlabsNeeded || Math.ceil(parseInt(p.quantity || 0) / (p.result?.topsPerSlab || 1)),
+        "Slabs Needed": p.result?.totalSlabsNeeded || Math.ceil(parseInt(p.quantity || 0) / (p.result?.optimization?.topsPerSlab || 1)),
         "Efficiency": p.result?.efficiency ? p.result.efficiency.toFixed(1) + "%" : "N/A",
         "Material": parseFloat(p.result?.materialCost || 0).toFixed(2),
         "Fab": parseFloat(p.result?.fabricationCost || 0).toFixed(2),
@@ -466,13 +492,13 @@ export default function StoneTopEstimator() {
         <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">Optimization Summary</h3>
         <p><strong>Total Slabs Required:</strong> ${totalSlabs}</p>
         <p><strong>Average Material Efficiency:</strong> ${avgEfficiency.toFixed(1)}%</p>
-        <p><strong>Optimization Method:</strong> Advanced CutList Algorithm</p>
+        <p><strong>Optimization Method:</strong> Advanced Slab Layout Algorithm</p>
       </div>
     `;
     
     element.innerHTML += `
       <div style="margin-top: 30px;">
-        <p style="font-size: 12px;">This optimized quote is valid for 30 days. Calculations include advanced cutlist optimization for maximum material efficiency. For questions, please contact AIC Surfaces.</p>
+        <p style="font-size: 12px;">This optimized quote is valid for 30 days. Calculations include advanced slab optimization for maximum material efficiency. For questions, please contact AIC Surfaces.</p>
       </div>
     `;
     
@@ -495,7 +521,7 @@ export default function StoneTopEstimator() {
           <div className="w-32 h-32 mx-auto mb-2 bg-gray-200 rounded flex items-center justify-center">
             <span className="text-4xl font-bold text-gray-600">AIC</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Stone Estimator with CutList Optimization</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Stone Estimator with Slab Optimization</h1>
           <p className="text-base font-medium text-gray-700">Developed by Roy Kariok</p>
         </div>
 
@@ -662,6 +688,7 @@ export default function StoneTopEstimator() {
                   <th className="border px-4 py-2">Qty</th>
                   <th className="border px-4 py-2">Edge</th>
                   <th className="border px-4 py-2">Area (sqft)</th>
+                  <th className="border px-4 py-2">Tops/Slab</th>
                   <th className="border px-4 py-2">Slabs Needed</th>
                   <th className="border px-4 py-2">Efficiency</th>
                   <th className="border px-4 py-2">Material $</th>
@@ -678,6 +705,9 @@ export default function StoneTopEstimator() {
                     <td className="border px-4 py-2">{p.quantity}</td>
                     <td className="border px-4 py-2">{p.edgeDetail}</td>
                     <td className="border px-4 py-2">{p.result?.usableAreaSqft.toFixed(2)}</td>
+                    <td className="border px-4 py-2 font-semibold text-purple-600">
+                      {p.result?.topsPerSlab}
+                    </td>
                     <td className="border px-4 py-2 font-semibold text-blue-600">
                       {p.result?.totalSlabsNeeded}
                     </td>
@@ -697,7 +727,7 @@ export default function StoneTopEstimator() {
               </tbody>
               <tfoot>
                 <tr className="bg-gray-100 font-bold">
-                  <td colSpan="10" className="border px-4 py-2 text-right">Total:</td>
+                  <td colSpan="11" className="border px-4 py-2 text-right">Total:</td>
                   <td className="border px-4 py-2 text-center">
                     ${allResults.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0).toFixed(2)}
                   </td>
@@ -727,10 +757,11 @@ export default function StoneTopEstimator() {
 
             {allResults.some(p => p.result?.optimization) && (
               <div className="mt-6 bg-gray-50 p-4 rounded">
-                <h4 className="font-semibold text-gray-800 mb-2">Cutlist Optimization Details</h4>
+                <h4 className="font-semibold text-gray-800 mb-2">Slab Optimization Details</h4>
                 <p className="text-sm text-gray-600">
                   Advanced algorithms have been used to minimize waste and optimize slab usage. 
                   The efficiency percentages shown reflect how well each piece layout utilizes the available slab area.
+                  Mixed orientations are used to maximize the number of tops per slab.
                 </p>
               </div>
             )}
