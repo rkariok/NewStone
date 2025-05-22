@@ -268,100 +268,6 @@ export default function StoneTopEstimator() {
     return totalSlabArea > 0 ? (totalUsedArea / totalSlabArea) * 100 : 0;
   };
 
-  // Visual Layout Preview Component
-  const SlabLayoutPreview = ({ result, stone, width, depth, quantity }) => {
-    if (!result?.optimization?.layoutPattern) return null;
-
-    const { layoutPattern } = result.optimization;
-    const slabData = stoneOptions.find(s => s["Stone Type"] === stone);
-    const slabWidth = parseFloat(slabData?.["Slab Width"]) || 126;
-    const slabHeight = parseFloat(slabData?.["Slab Height"]) || 63;
-    
-    const scale = Math.min(300 / slabWidth, 200 / slabHeight);
-    const displayWidth = slabWidth * scale;
-    const displayHeight = slabHeight * scale;
-
-    return (
-      <div className="bg-white border rounded-lg p-4 mt-4">
-        <h5 className="font-semibold mb-2 text-sm">
-          Layout Preview: {stone} ({width}×{depth})
-        </h5>
-        <div className="flex items-start space-x-4">
-          <div className="relative border-2 border-gray-400 bg-gray-100" 
-               style={{ width: displayWidth, height: displayHeight }}>
-            
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300"></div>
-            
-            {layoutPattern.pieces.slice(0, Math.min(quantity, result.topsPerSlab)).map((piece, index) => (
-              <div
-                key={index}
-                className="absolute border border-blue-600 bg-blue-200 bg-opacity-70 flex items-center justify-center text-xs font-bold text-blue-800"
-                style={{
-                  left: piece.x * scale,
-                  top: piece.y * scale,
-                  width: piece.width * scale,
-                  height: piece.height * scale,
-                  fontSize: Math.max(8, scale * 2)
-                }}
-              >
-                {index + 1}
-              </div>
-            ))}
-            
-            {includeKerf && layoutPattern.pieces.map((piece, index) => (
-              <div key={`kerf-${index}`}>
-                {piece.x + piece.width < slabWidth && (
-                  <div
-                    className="absolute bg-red-400 opacity-50"
-                    style={{
-                      left: (piece.x + piece.width) * scale,
-                      top: piece.y * scale,
-                      width: kerfWidth * scale,
-                      height: piece.height * scale
-                    }}
-                  />
-                )}
-                {piece.y + piece.height < slabHeight && (
-                  <div
-                    className="absolute bg-red-400 opacity-50"
-                    style={{
-                      left: piece.x * scale,
-                      top: (piece.y + piece.height) * scale,
-                      width: piece.width * scale,
-                      height: kerfWidth * scale
-                    }}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          
-          <div className="text-xs space-y-1">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-blue-200 border border-blue-600"></div>
-              <span>Pieces ({layoutPattern.pieces.length} max)</span>
-            </div>
-            {includeKerf && (
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-red-400 opacity-50"></div>
-                <span>Kerf ({kerfWidth}")</span>
-              </div>
-            )}
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-gray-300 border"></div>
-              <span>Waste</span>
-            </div>
-            <div className="pt-2 text-gray-600">
-              <div>Slab: {slabWidth}" × {slabHeight}"</div>
-              <div>Efficiency: {result.efficiency?.toFixed(1)}%</div>
-              <div>Pieces/Slab: {result.topsPerSlab}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const handleDrawingUpload = async (e, index) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
@@ -467,6 +373,12 @@ export default function StoneTopEstimator() {
       };
     });
 
+    // Update products with results for layout preview
+    const updatedProducts = products.map((product, index) => ({
+      ...product,
+      result: results[index]?.result || null
+    }));
+    setProducts(updatedProducts);
     setAllResults(results);
 
     const sheetRows = results.map(p => {
@@ -878,13 +790,112 @@ export default function StoneTopEstimator() {
 
             {/* Layout Preview for Individual Product */}
             {showLayoutPreviews && product.result && product.stone && product.width && product.depth && (
-              <SlabLayoutPreview 
-                result={product.result}
-                stone={product.stone}
-                width={product.width}
-                depth={product.depth}
-                quantity={product.quantity}
-              />
+              <div className="bg-white border rounded-lg p-4 mt-4">
+                <h5 className="font-semibold mb-2 text-sm">
+                  Layout Preview: {product.stone} ({product.width}×{product.depth})
+                </h5>
+                <div className="flex items-start space-x-4">
+                  {product.result?.optimization?.layoutPattern ? (
+                    <>
+                      <div 
+                        className="relative border-2 border-gray-400 bg-gray-100" 
+                        style={{ 
+                          width: Math.min(300, (parseFloat(stoneOptions.find(s => s["Stone Type"] === product.stone)?.["Slab Width"]) || 126) * 2),
+                          height: Math.min(200, (parseFloat(stoneOptions.find(s => s["Stone Type"] === product.stone)?.["Slab Height"]) || 63) * 2)
+                        }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300"></div>
+                        
+                        {/* Render pieces */}
+                        {product.result.optimization.layoutPattern.pieces.slice(0, Math.min(product.quantity, product.result.topsPerSlab)).map((piece, pieceIndex) => {
+                          const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
+                          const slabWidth = parseFloat(slabData?.["Slab Width"]) || 126;
+                          const slabHeight = parseFloat(slabData?.["Slab Height"]) || 63;
+                          const scale = Math.min(300 / slabWidth, 200 / slabHeight);
+                          
+                          return (
+                            <div
+                              key={pieceIndex}
+                              className="absolute border border-blue-600 bg-blue-200 bg-opacity-70 flex items-center justify-center text-xs font-bold text-blue-800"
+                              style={{
+                                left: piece.x * scale,
+                                top: piece.y * scale,
+                                width: piece.width * scale,
+                                height: piece.height * scale,
+                                fontSize: Math.max(8, scale * 2)
+                              }}
+                            >
+                              {pieceIndex + 1}
+                            </div>
+                          );
+                        })}
+                        
+                        {/* Kerf lines */}
+                        {includeKerf && product.result.optimization.layoutPattern.pieces.map((piece, pieceIndex) => {
+                          const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
+                          const slabWidth = parseFloat(slabData?.["Slab Width"]) || 126;
+                          const slabHeight = parseFloat(slabData?.["Slab Height"]) || 63;
+                          const scale = Math.min(300 / slabWidth, 200 / slabHeight);
+                          
+                          return (
+                            <div key={`kerf-${pieceIndex}`}>
+                              {piece.x + piece.width < slabWidth && (
+                                <div
+                                  className="absolute bg-red-400 opacity-50"
+                                  style={{
+                                    left: (piece.x + piece.width) * scale,
+                                    top: piece.y * scale,
+                                    width: kerfWidth * scale,
+                                    height: piece.height * scale
+                                  }}
+                                />
+                              )}
+                              {piece.y + piece.height < slabHeight && (
+                                <div
+                                  className="absolute bg-red-400 opacity-50"
+                                  style={{
+                                    left: piece.x * scale,
+                                    top: (piece.y + piece.height) * scale,
+                                    width: piece.width * scale,
+                                    height: kerfWidth * scale
+                                  }}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Legend */}
+                      <div className="text-xs space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-4 h-4 bg-blue-200 border border-blue-600"></div>
+                          <span>Pieces ({product.result.optimization.layoutPattern.pieces.length} max)</span>
+                        </div>
+                        {includeKerf && (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 bg-red-400 opacity-50"></div>
+                            <span>Kerf ({kerfWidth}")</span>
+                          </div>
+                        )}
+                        <div className="flex items-center space-x-2">
+                          <div className="w-4 h-4 bg-gray-300 border"></div>
+                          <span>Waste</span>
+                        </div>
+                        <div className="pt-2 text-gray-600">
+                          <div>Slab: {parseFloat(stoneOptions.find(s => s["Stone Type"] === product.stone)?.["Slab Width"]) || 126}" × {parseFloat(stoneOptions.find(s => s["Stone Type"] === product.stone)?.["Slab Height"]) || 63}"</div>
+                          <div>Efficiency: {product.result.efficiency?.toFixed(1)}%</div>
+                          <div>Pieces/Slab: {product.result.topsPerSlab}</div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-gray-500 text-sm">
+                      Layout preview will appear after calculation
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         ))}
