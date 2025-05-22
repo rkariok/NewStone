@@ -57,27 +57,38 @@ export default function StoneTopEstimator() {
     console.log(`Raw values: pieceW=${pieceW}, pieceH=${pieceH}, slabW=${slabW}, slabH=${slabH}`);
     
     // Special case for 24×36 on 126×63 - the 8-piece mixed layout
-    if (pw === 24 && ph === 36 && sw === 126 && sh === 63) {
-      console.log(`🔥 OPTIMAL 8-PIECE LAYOUT FOR 24×36:`);
+    // Check both orientations and handle slight variations
+    if ((pw === 24 && ph === 36 && sw >= 126 && sw <= 127 && sh >= 63 && sh <= 64) ||
+        (pw === 36 && ph === 24 && sw >= 126 && sw <= 127 && sh >= 63 && sh <= 64)) {
+      console.log(`🔥 OPTIMAL 8-PIECE LAYOUT DETECTED!`);
       
-      // Row 1: 3 horizontal pieces (36×24) 
+      // For 24×36 pieces, the optimal layout is:
+      // Row 1: 3 pieces horizontally (36×24) = 108" width, 24" height
+      // Row 2: 5 pieces vertically (24×36) = 120" width, 36" height
+      // Total height: 24 + kerf + 36 = 60" + kerf (fits in 63" slab)
+      
       const row1_pieces = 3;
-      const row1_width = (row1_pieces - 1) * kerf + row1_pieces * 36;
+      const row1_width = row1_pieces * 36 + (row1_pieces - 1) * kerf;
       const row1_height = 24;
       
-      // Row 2: 5 vertical pieces (24×36)
-      const row2_pieces = 5; 
-      const row2_width = (row2_pieces - 1) * kerf + row2_pieces * 24;
+      const row2_pieces = 5;
+      const row2_width = row2_pieces * 24 + (row2_pieces - 1) * kerf;
       const row2_height = 36;
       
       const total_height = row1_height + kerf + row2_height;
+      const total_pieces = row1_pieces + row2_pieces;
       
       console.log(`Row 1: ${row1_pieces} pieces (36×24), width: ${row1_width}", height: ${row1_height}"`);
       console.log(`Row 2: ${row2_pieces} pieces (24×36), width: ${row2_width}", height: ${row2_height}"`);
-      console.log(`Total height: ${total_height}" (fits: ${total_height <= sh})`);
-      console.log(`✅ RETURNING 8 PIECES - OPTIMAL MIXED LAYOUT`);
+      console.log(`Total height needed: ${total_height}" (slab height: ${sh}")`);
+      console.log(`✅ RETURNING ${total_pieces} PIECES - OPTIMAL MIXED LAYOUT`);
       
-      return 8;
+      // Verify it actually fits
+      if (row1_width <= sw && row2_width <= sw && total_height <= sh) {
+        return total_pieces;
+      } else {
+        console.log(`❌ Layout doesn't fit! Falling back to standard calculation.`);
+      }
     }
     // Also check if dimensions are flipped (36×24 instead of 24×36)
     if (pw === 36 && ph === 24 && sw === 126 && sh === 63) {
@@ -88,19 +99,21 @@ export default function StoneTopEstimator() {
     // General optimization for other sizes
     let maxPieces = 0;
     
+    // Try both orientations
     const vertical = Math.floor(sw / (pw + kerf)) * Math.floor(sh / (ph + kerf));
     const horizontal = Math.floor(sw / (ph + kerf)) * Math.floor(sh / (pw + kerf));
     
     maxPieces = Math.max(vertical, horizontal);
     
-    console.log(`Vertical orientation: ${Math.floor(sw / (pw + kerf))} × ${Math.floor(sh / (ph + kerf))} = ${vertical} pieces`);
-    console.log(`Horizontal orientation: ${Math.floor(sw / (ph + kerf))} × ${Math.floor(sh / (pw + kerf))} = ${horizontal} pieces`);
+    console.log(`Standard vertical orientation: ${Math.floor(sw / (pw + kerf))} × ${Math.floor(sh / (ph + kerf))} = ${vertical} pieces`);
+    console.log(`Standard horizontal orientation: ${Math.floor(sw / (ph + kerf))} × ${Math.floor(sh / (pw + kerf))} = ${horizontal} pieces`);
     
-    // Mixed layout testing
+    // Mixed layout testing for better optimization
+    // Try horizontal pieces in top rows, vertical pieces in remaining space
     for (let hRows = 1; hRows <= Math.floor(sh / (pw + kerf)); hRows++) {
       const hPieces = hRows * Math.floor(sw / (ph + kerf));
-      const usedHeight = hRows * (pw + kerf) - kerf;
-      const remainingHeight = sh - usedHeight;
+      const usedHeight = hRows * pw + (hRows - 1) * kerf;
+      const remainingHeight = sh - usedHeight - kerf; // Account for kerf between sections
       
       if (remainingHeight >= ph) {
         const vRows = Math.floor(remainingHeight / (ph + kerf));
@@ -109,7 +122,25 @@ export default function StoneTopEstimator() {
         
         if (totalMixed > maxPieces) {
           maxPieces = totalMixed;
-          console.log(`🔀 Mixed layout: ${hPieces}H + ${vPieces}V = ${totalMixed} pieces`);
+          console.log(`🔀 Better mixed layout found: ${hPieces}H (${hRows} rows) + ${vPieces}V (${vRows} rows) = ${totalMixed} pieces`);
+        }
+      }
+    }
+    
+    // Also try vertical pieces in top rows, horizontal pieces in remaining space
+    for (let vRows = 1; vRows <= Math.floor(sh / (ph + kerf)); vRows++) {
+      const vPieces = vRows * Math.floor(sw / (pw + kerf));
+      const usedHeight = vRows * ph + (vRows - 1) * kerf;
+      const remainingHeight = sh - usedHeight - kerf;
+      
+      if (remainingHeight >= pw) {
+        const hRows = Math.floor(remainingHeight / (pw + kerf));
+        const hPieces = hRows * Math.floor(sw / (ph + kerf));
+        const totalMixed = vPieces + hPieces;
+        
+        if (totalMixed > maxPieces) {
+          maxPieces = totalMixed;
+          console.log(`🔀 Better mixed layout found: ${vPieces}V (${vRows} rows) + ${hPieces}H (${hRows} rows) = ${totalMixed} pieces`);
         }
       }
     }
