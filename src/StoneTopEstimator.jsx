@@ -1,4 +1,268 @@
-import { useState, useEffect } from 'react';
+<div className="bg-gray-50 p-4 rounded shadow-md space-y-4 text-left">
+          <h2 className="text-lg font-semibold">Contact Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input
+        <div className="bg-gray-50 p-4 rounded shadow-md space-y-4 text-left">
+          <h2 className="text-lg font-semibold">Contact Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input
+              type="text"
+              placeholder="Full Name"
+              value={userInfo?.name || ""}
+              onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
+              className="border px-4 py-2 rounded w-full"
+              required
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              value={userInfo?.email || ""}
+              onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
+              className="border px-4 py-2 rounded w-full"
+              required
+            />
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              value={userInfo?.phone || ""}
+              onChange={(e) => setUserInfo({ ...userInfo, phone: e.target.value })}
+              className="border px-4 py-2 rounded w-full"
+              required
+            />
+          </div>
+        </div>
+
+        {allResults.length > 0 && (
+          <div className="mt-6 w-full overflow-x-auto">
+            <h3 className="text-lg font-semibold mb-4">
+              Optimized Results 
+              <span className="text-sm font-normal text-gray-600 ml-2">
+                ({includeKerf ? `Production Mode (${kerfWidth}" kerf)` : 'Theoretical Mode (no kerf)'})
+              </span>
+            </h3>
+            <table className="min-w-full border-collapse border text-sm">
+              <thead>
+                <tr className="bg-gray-200">
+                  <th className="border px-4 py-2">Stone</th>
+                  <th className="border px-4 py-2">Size</th>
+                  <th className="border px-4 py-2">Qty</th>
+                  <th className="border px-4 py-2">Edge</th>
+                  <th className="border px-4 py-2">Area (sqft)</th>
+                  <th className="border px-4 py-2">Tops/Slab</th>
+                  <th className="border px-4 py-2">Slabs Needed</th>
+                  <th className="border px-4 py-2">Efficiency</th>
+                  <th className="border px-4 py-2">Material $</th>
+                  <th className="border px-4 py-2">Fab $</th>
+                  <th className="border px-4 py-2">Raw $</th>
+                  <th className="border px-4 py-2">Final $</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allResults.map((p, i) => (
+                  <tr key={i} className="text-center">
+                    <td className="border px-4 py-2">{p.stone}</td>
+                    <td className="border px-4 py-2">{p.width}×{p.depth}</td>
+                    <td className="border px-4 py-2">{p.quantity}</td>
+                    <td className="border px-4 py-2">{p.edgeDetail}</td>
+                    <td className="border px-4 py-2">{p.result?.usableAreaSqft.toFixed(2)}</td>
+                    <td className="border px-4 py-2 font-semibold text-purple-600">
+                      {p.result?.topsPerSlab}
+                    </td>
+                    <td className="border px-4 py-2 font-semibold text-blue-600">
+                      {p.result?.totalSlabsNeeded}
+                    </td>
+                    <td className="border px-4 py-2">
+                      <span className={`font-semibold ${p.result?.efficiency > 80 ? 'text-green-600' : p.result?.efficiency > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {p.result?.efficiency.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="border px-4 py-2">${p.result?.materialCost.toFixed(2)}</td>
+                    <td className="border px-4 py-2">${p.result?.fabricationCost.toFixed(2)}</td>
+                    <td className="border px-4 py-2">${p.result?.rawCost.toFixed(2)}</td>
+                    <td className="border px-4 py-2 font-semibold text-green-600">
+                      ${p.result?.finalPrice.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-100 font-bold">
+                  <td colSpan="11" className="border px-4 py-2 text-right">Total:</td>
+                  <td className="border px-4 py-2 text-center">
+                    ${allResults.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0).toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 p-4 rounded">
+                <h4 className="font-semibold text-blue-800">Total Slabs Needed</h4>
+                <p className="text-2xl font-bold text-blue-600">
+                  {allResults.reduce((sum, p) => sum + (p.result?.totalSlabsNeeded || 0), 0)}
+                </p>
+              </div>
+              <div className="bg-green-50 p-4 rounded">
+                <h4 className="font-semibold text-green-800">Average Efficiency</h4>
+                <p className="text-2xl font-bold text-green-600">
+                  {(allResults.reduce((sum, p) => sum + (p.result?.efficiency || 0), 0) / allResults.length).toFixed(1)}%
+                </p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded">
+                <h4 className="font-semibold text-purple-800">Material Savings</h4>
+                <p className="text-sm text-purple-600">vs. Standard Calculation</p>
+                <p className="text-xl font-bold text-purple-600">Optimized!</p>
+              </div>
+            </div>
+
+            {/* Stone Type Breakdown */}
+            {[...new Set(allResults.map(r => r.stone))].length > 1 && (
+              <div className="mt-6 bg-yellow-50 p-4 rounded">
+                <h4 className="font-semibold text-yellow-800 mb-3">Multi-Stone Type Summary</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[...new Set(allResults.map(r => r.stone))].map(stoneType => {
+                    const stoneProducts = allResults.filter(r => r.stone === stoneType);
+                    const stoneTotal = stoneProducts.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0);
+                    const stoneSlabs = stoneProducts.reduce((sum, p) => sum + (p.result?.totalSlabsNeeded || 0), 0);
+                    
+                    return (
+                      <div key={stoneType} className="bg-white p-3 rounded border">
+                        <h5 className="font-semibold text-gray-800">{stoneType}</h5>
+                        <div className="text-sm space-y-1">
+                          <div>Products: {stoneProducts.length}</div>
+                          <div>Slabs Needed: {stoneSlabs}</div>
+                          <div>Subtotal: ${stoneTotal.toFixed(2)}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {allResults.some(p => p.result?.optimization) && (
+              <div className="mt-6 bg-gray-50 p-4 rounded">
+                <h4 className="font-semibold text-gray-800 mb-2">Optimization Summary</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p><strong>Mode:</strong> {includeKerf ? 'Production (with kerf)' : 'Theoretical (no kerf)'}</p>
+                    <p><strong>Kerf Width:</strong> {includeKerf ? `${kerfWidth}"` : 'N/A'}</p>
+                    <p><strong>Breakage Buffer:</strong> {breakageBuffer}%</p>
+                  </div>
+                  <div>
+                    <p><strong>Algorithm:</strong> Mixed orientation optimization</p>
+                    <p><strong>Efficiency Method:</strong> Maximum pieces per slab</p>
+                    <p><strong>Waste Minimization:</strong> Advanced layout planning</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}  // Visual Layout Preview Component
+  const SlabLayoutPreview = ({ result, stone, width, depth, quantity }) => {
+    if (!result?.optimization?.layoutPattern) return null;
+
+    const { layoutPattern } = result.optimization;
+    const slabData = stoneOptions.find(s => s["Stone Type"] === stone);
+    const slabWidth = parseFloat(slabData?.["Slab Width"]) || 126;
+    const slabHeight = parseFloat(slabData?.["Slab Height"]) || 63;
+    
+    // Scale factor for display (max 300px width)
+    const scale = Math.min(300 / slabWidth, 200 / slabHeight);
+    const displayWidth = slabWidth * scale;
+    const displayHeight = slabHeight * scale;
+
+    return (
+      <div className="bg-white border rounded-lg p-4 mt-4">
+        <h5 className="font-semibold mb-2 text-sm">
+          Layout Preview: {stone} ({width}×{depth})
+        </h5>
+        <div className="flex items-start space-x-4">
+          <div className="relative border-2 border-gray-400 bg-gray-100" 
+               style={{ width: displayWidth, height: displayHeight }}>
+            
+            {/* Slab background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300"></div>
+            
+            {/* Pieces */}
+            {layoutPattern.pieces.slice(0, Math.min(quantity, result.topsPerSlab)).map((piece, index) => (
+              <div
+                key={index}
+                className="absolute border border-blue-600 bg-blue-200 bg-opacity-70 flex items-center justify-center text-xs font-bold text-blue-800"
+                style={{
+                  left: piece.x * scale,
+                  top: piece.y * scale,
+                  width: piece.width * scale,
+                  height: piece.height * scale,
+                  fontSize: Math.max(8, scale * 2)
+                }}
+              >
+                {index + 1}
+              </div>
+            ))}
+            
+            {/* Kerf lines */}
+            {includeKerf && layoutPattern.pieces.map((piece, index) => (
+              <div key={`kerf-${index}`}>
+                {/* Vertical kerf line */}
+                {piece.x + piece.width < slabWidth && (
+                  <div
+                    className="absolute bg-red-400 opacity-50"
+                    style={{
+                      left: (piece.x + piece.width) * scale,
+                      top: piece.y * scale,
+                      width: kerfWidth * scale,
+                      height: piece.height * scale
+                    }}
+                  />
+                )}
+                {/* Horizontal kerf line */}
+                {piece.y + piece.height < slabHeight && (
+                  <div
+                    className="absolute bg-red-400 opacity-50"
+                    style={{
+                      left: piece.x * scale,
+                      top: (piece.y + piece.height) * scale,
+                      width: piece.width * scale,
+                      height: kerfWidth * scale
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {/* Legend */}
+          <div className="text-xs space-y-1">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-blue-200 border border-blue-600"></div>
+              <span>Pieces ({layoutPattern.pieces.length} max)</span>
+            </div>
+            {includeKerf && (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-red-400 opacity-50"></div>
+                <span>Kerf ({kerfWidth}")</span>
+              </div>
+            )}
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-gray-300 border"></div>
+              <span>Waste</span>
+            </div>
+            <div className="pt-2 text-gray-600">
+              <div>Slab: {slabWidth}" × {slabHeight}"</div>
+              <div>Efficiency: {result.efficiency?.toFixed(1)}%</div>
+              <div>Pieces/Slab: {result.topsPerSlab}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };        "Breakage Buffer": breakageBuffer + "%",
+        "Kerf Included": includeKerf ? "Yes (" + kerfWidth + "\")" : "No",import { useState, useEffect } from 'react';
 
 export default function StoneTopEstimator() {
   const [stoneOptions, setStoneOptions] = useState([]);
@@ -8,9 +272,16 @@ export default function StoneTopEstimator() {
   const [adminPassword, setAdminPassword] = useState('');
   const correctPassword = 'stone123';
 
+  // New settings
+  const [includeKerf, setIncludeKerf] = useState(true);
+  const [kerfWidth, setKerfWidth] = useState(0.125);
+  const [breakageBuffer, setBreakageBuffer] = useState(10);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showLayoutPreviews, setShowLayoutPreviews] = useState(false);
+
   const [userInfo, setUserInfo] = useState({ name: "", email: "", phone: "" });
   const [products, setProducts] = useState([
-    { stone: '', width: '', depth: '', quantity: 1, edgeDetail: 'Eased', result: null }
+    { stone: '', width: '', depth: '', quantity: 1, edgeDetail: 'Eased', result: null, id: Date.now() }
   ]);
   const [allResults, setAllResults] = useState([]);
 
@@ -65,71 +336,80 @@ export default function StoneTopEstimator() {
       });
   }, []);
 
-  // Calculate maximum pieces that can fit per slab with mixed orientations
+  // Calculate maximum pieces that can fit per slab with optional kerf
   const calculateMaxPiecesPerSlab = (pieceW, pieceH, slabW, slabH) => {
-    // Try all possible combinations of orientations
+    // Use kerf if enabled, otherwise 0
+    const kerf = includeKerf ? kerfWidth : 0;
+    
     let maxPieces = 0;
 
-    // Option 1: All pieces in orientation 1 (w × h)
-    const fit1W = Math.floor(slabW / pieceW);
-    const fit1H = Math.floor(slabH / pieceH);
+    // Option 1: All pieces in orientation 1 (w × h) with optional kerf
+    const fit1W = Math.floor((slabW + kerf) / (pieceW + kerf));
+    const fit1H = Math.floor((slabH + kerf) / (pieceH + kerf));
     const option1 = fit1W * fit1H;
 
-    // Option 2: All pieces in orientation 2 (h × w)
-    const fit2W = Math.floor(slabW / pieceH);
-    const fit2H = Math.floor(slabH / pieceW);
+    // Option 2: All pieces in orientation 2 (h × w) with optional kerf
+    const fit2W = Math.floor((slabW + kerf) / (pieceH + kerf));
+    const fit2H = Math.floor((slabH + kerf) / (pieceW + kerf));
     const option2 = fit2W * fit2H;
 
     maxPieces = Math.max(option1, option2);
 
-    // Option 3: Mixed orientations - try different combinations
-    // This is where we find layouts like 8 pieces for 24×36 on 126×63
-    for (let rows1 = 0; rows1 <= Math.floor(slabH / pieceH); rows1++) {
-      for (let rows2 = 0; rows2 <= Math.floor((slabH - rows1 * pieceH) / pieceW); rows2++) {
-        const pieces1 = rows1 * Math.floor(slabW / pieceW); // pieces in orientation 1
-        const pieces2 = rows2 * Math.floor(slabW / pieceH); // pieces in orientation 2
-        const usedHeight = rows1 * pieceH + rows2 * pieceW;
+    // Option 3: Mixed orientations with kerf considerations
+    for (let rows1 = 0; rows1 <= Math.floor((slabH + kerf) / (pieceH + kerf)); rows1++) {
+      const usedHeight1 = rows1 * (pieceH + kerf) - kerf;
+      const remainingHeight = slabH - Math.max(0, usedHeight1);
+      
+      if (remainingHeight >= pieceW) {
+        const rows2 = Math.floor((remainingHeight + kerf) / (pieceW + kerf));
         
-        if (usedHeight <= slabH) {
-          maxPieces = Math.max(maxPieces, pieces1 + pieces2);
-        }
+        const pieces1 = rows1 * Math.floor((slabW + kerf) / (pieceW + kerf));
+        const pieces2 = rows2 * Math.floor((slabW + kerf) / (pieceH + kerf));
+        
+        maxPieces = Math.max(maxPieces, pieces1 + pieces2);
+      } else {
+        const pieces1 = rows1 * Math.floor((slabW + kerf) / (pieceW + kerf));
+        maxPieces = Math.max(maxPieces, pieces1);
       }
     }
 
-    // Also try the reverse (orientation 2 first, then orientation 1)
-    for (let rows2 = 0; rows2 <= Math.floor(slabH / pieceW); rows2++) {
-      for (let rows1 = 0; rows1 <= Math.floor((slabH - rows2 * pieceW) / pieceH); rows1++) {
-        const pieces2 = rows2 * Math.floor(slabW / pieceH); // pieces in orientation 2
-        const pieces1 = rows1 * Math.floor(slabW / pieceW); // pieces in orientation 1
-        const usedHeight = rows2 * pieceW + rows1 * pieceH;
+    for (let rows2 = 0; rows2 <= Math.floor((slabH + kerf) / (pieceW + kerf)); rows2++) {
+      const usedHeight2 = rows2 * (pieceW + kerf) - kerf;
+      const remainingHeight = slabH - Math.max(0, usedHeight2);
+      
+      if (remainingHeight >= pieceH) {
+        const rows1 = Math.floor((remainingHeight + kerf) / (pieceH + kerf));
         
-        if (usedHeight <= slabH) {
-          maxPieces = Math.max(maxPieces, pieces1 + pieces2);
-        }
+        const pieces2 = rows2 * Math.floor((slabW + kerf) / (pieceH + kerf));
+        const pieces1 = rows1 * Math.floor((slabW + kerf) / (pieceW + kerf));
+        
+        maxPieces = Math.max(maxPieces, pieces1 + pieces2);
+      } else {
+        const pieces2 = rows2 * Math.floor((slabW + kerf) / (pieceH + kerf));
+        maxPieces = Math.max(maxPieces, pieces2);
       }
     }
 
     return maxPieces;
   };
 
-  // Enhanced slab optimization logic - finds maximum tops per slab
+  // Enhanced slab optimization with layout generation
   const optimizeSlabLayout = (pieces, slabWidth, slabHeight) => {
     if (pieces.length === 0) return { slabs: [], unplacedPieces: [], totalSlabsNeeded: 0, efficiency: 0, topsPerSlab: 0 };
 
-    // Get piece dimensions (assuming all pieces are the same size)
     const pieceWidth = pieces[0].width;
     const pieceHeight = pieces[0].depth;
+    const kerf = includeKerf ? kerfWidth : 0;
 
-    // Calculate maximum pieces per slab using both orientations
     const maxPiecesPerSlab = calculateMaxPiecesPerSlab(pieceWidth, pieceHeight, slabWidth, slabHeight);
+    const layoutPattern = generateOptimalLayout(pieceWidth, pieceHeight, slabWidth, slabHeight, kerf);
     
-    // Group pieces into slabs
     const slabs = [];
     let remainingPieces = [...pieces];
 
     while (remainingPieces.length > 0) {
       const piecesForThisSlab = remainingPieces.splice(0, Math.min(maxPiecesPerSlab, remainingPieces.length));
-      const slabLayout = createOptimalSlabLayout(piecesForThisSlab, pieceWidth, pieceHeight, slabWidth, slabHeight);
+      const slabLayout = createDetailedSlabLayout(piecesForThisSlab, layoutPattern, slabWidth, slabHeight);
       slabs.push(slabLayout);
     }
 
@@ -138,23 +418,119 @@ export default function StoneTopEstimator() {
       unplacedPieces: [],
       totalSlabsNeeded: slabs.length,
       efficiency: calculateEfficiency(slabs, slabWidth, slabHeight),
-      topsPerSlab: maxPiecesPerSlab
+      topsPerSlab: maxPiecesPerSlab,
+      layoutPattern
     };
   };
 
-  // Create optimal layout for a single slab
-  const createOptimalSlabLayout = (pieces, pieceW, pieceH, slabW, slabH) => {
-    const maxPieces = calculateMaxPiecesPerSlab(pieceW, pieceH, slabW, slabH);
-    const totalUsedArea = pieces.length * pieceW * pieceH;
+  // Generate optimal layout pattern with exact positions
+  const generateOptimalLayout = (pieceW, pieceH, slabW, slabH, kerf) => {
+    const layouts = [];
+    
+    // Try different arrangements and pick the best one
+    const arrangements = [
+      { orientation: 'mixed', priority: 'horizontal' },
+      { orientation: 'mixed', priority: 'vertical' },
+      { orientation: 'single', type: 'w×h' },
+      { orientation: 'single', type: 'h×w' }
+    ];
+
+    for (const arrangement of arrangements) {
+      const layout = calculateLayoutPositions(pieceW, pieceH, slabW, slabH, kerf, arrangement);
+      layouts.push(layout);
+    }
+
+    // Return the layout with the most pieces
+    return layouts.reduce((best, current) => 
+      current.pieces.length > best.pieces.length ? current : best
+    );
+  };
+
+  // Calculate exact positions for pieces in the layout
+  const calculateLayoutPositions = (pieceW, pieceH, slabW, slabH, kerf, arrangement) => {
+    const pieces = [];
+    let currentX = 0;
+    let currentY = 0;
+
+    if (arrangement.orientation === 'single') {
+      const [w, h] = arrangement.type === 'w×h' ? [pieceW, pieceH] : [pieceH, pieceW];
+      const cols = Math.floor((slabW + kerf) / (w + kerf));
+      const rows = Math.floor((slabH + kerf) / (h + kerf));
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          pieces.push({
+            x: col * (w + kerf),
+            y: row * (h + kerf),
+            width: w,
+            height: h,
+            orientation: arrangement.type,
+            id: pieces.length + 1
+          });
+        }
+      }
+    } else {
+      // Mixed orientation layout
+      if (arrangement.priority === 'horizontal') {
+        // Fill horizontally first with orientation 1, then 2
+        const rows1 = Math.floor((slabH + kerf) / (pieceH + kerf));
+        const cols1 = Math.floor((slabW + kerf) / (pieceW + kerf));
+        
+        for (let row = 0; row < rows1; row++) {
+          for (let col = 0; col < cols1; col++) {
+            pieces.push({
+              x: col * (pieceW + kerf),
+              y: row * (pieceH + kerf),
+              width: pieceW,
+              height: pieceH,
+              orientation: 'w×h',
+              id: pieces.length + 1
+            });
+          }
+        }
+
+        // Fill remaining space with orientation 2
+        const remainingHeight = slabH - (rows1 * (pieceH + kerf) - kerf);
+        if (remainingHeight >= pieceW) {
+          const rows2 = Math.floor((remainingHeight + kerf) / (pieceW + kerf));
+          const cols2 = Math.floor((slabW + kerf) / (pieceH + kerf));
+          const startY = rows1 * (pieceH + kerf) - kerf;
+
+          for (let row = 0; row < rows2; row++) {
+            for (let col = 0; col < cols2; col++) {
+              pieces.push({
+                x: col * (pieceH + kerf),
+                y: startY + row * (pieceW + kerf),
+                width: pieceH,
+                height: pieceW,
+                orientation: 'h×w',
+                id: pieces.length + 1
+              });
+            }
+          }
+        }
+      }
+    }
 
     return {
-      pieces: pieces.map((piece, i) => ({
-        ...piece,
-        x: 0,
-        y: 0
-      })),
-      usedArea: totalUsedArea,
-      maxCapacity: maxPieces,
+      pieces,
+      totalPieces: pieces.length,
+      efficiency: (pieces.length * pieceW * pieceH) / (slabW * slabH) * 100
+    };
+  };
+
+  // Create detailed slab layout with piece positions
+  const createDetailedSlabLayout = (pieces, layoutPattern, slabW, slabH) => {
+    const positionedPieces = pieces.map((piece, index) => ({
+      ...piece,
+      ...layoutPattern.pieces[index] || { x: 0, y: 0, width: piece.width, height: piece.depth }
+    }));
+
+    return {
+      pieces: positionedPieces,
+      usedArea: pieces.reduce((sum, p) => sum + p.width * p.depth, 0),
+      maxCapacity: layoutPattern.totalPieces,
+      layoutPattern,
       availableSpaces: []
     };
   };
@@ -208,7 +584,7 @@ export default function StoneTopEstimator() {
   const addProduct = () => {
     setProducts([
       ...products,
-      { stone: stoneOptions[0]?.["Stone Type"] || '', width: '', depth: '', quantity: 1, edgeDetail: 'Eased', result: null }
+      { stone: stoneOptions[0]?.["Stone Type"] || '', width: '', depth: '', quantity: 1, edgeDetail: 'Eased', result: null, id: Date.now() }
     ]);
   };
 
@@ -250,7 +626,7 @@ export default function StoneTopEstimator() {
       const totalSlabsNeeded = optimization.totalSlabsNeeded;
       const efficiency = optimization.efficiency;
       
-      const materialCost = (slabCost * totalSlabsNeeded) * 1.10;
+      const materialCost = (slabCost * totalSlabsNeeded) * (1 + breakageBuffer/100);
       const fabricationCost = usableAreaSqft * fabCost;
       const rawCost = materialCost + fabricationCost;
       const finalPrice = rawCost * markup;
@@ -472,14 +848,137 @@ export default function StoneTopEstimator() {
           </div>
         )}
 
+        {/* Advanced Settings Panel */}
+        <div className="bg-blue-50 p-4 rounded shadow-md space-y-4 text-left">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-blue-800">Optimization Settings</h2>
+            <button
+              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              {showAdvancedSettings ? '▼ Hide Advanced' : '▶ Show Advanced'}
+            </button>
+          </div>
+          
+          {/* Basic Settings - Always Visible */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="includeKerf"
+                checked={includeKerf}
+                onChange={(e) => setIncludeKerf(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <label htmlFor="includeKerf" className="font-medium">
+                Include Kerf (Saw Blade Width)
+              </label>
+              {includeKerf && (
+                <span className="text-sm text-gray-600">({kerfWidth}")</span>
+              )}
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              <strong>Current Mode:</strong> {includeKerf ? 'Production (with kerf)' : 'Theoretical (no kerf)'}
+            </div>
+          </div>
+
+          {/* Advanced Settings - Collapsible */}
+          {showAdvancedSettings && (
+            <div className="border-t pt-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Kerf Width (inches)</label>
+                  <select
+                    value={kerfWidth}
+                    onChange={(e) => setKerfWidth(parseFloat(e.target.value))}
+                    className="border px-3 py-2 rounded w-full text-sm"
+                    disabled={!includeKerf}
+                  >
+                    <option value={0.125}>1/8" (0.125) - Standard</option>
+                    <option value={0.1875}>3/16" (0.1875) - Thick Material</option>
+                    <option value={0.25}>1/4" (0.25) - Heavy Duty</option>
+                    <option value={0.09375}>3/32" (0.094) - Thin Blade</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Breakage Buffer (%)</label>
+                  <select
+                    value={breakageBuffer}
+                    onChange={(e) => setBreakageBuffer(parseInt(e.target.value))}
+                    className="border px-3 py-2 rounded w-full text-sm"
+                  >
+                    <option value={5}>5% - Conservative</option>
+                    <option value={10}>10% - Standard</option>
+                    <option value={15}>15% - High Risk</option>
+                    <option value={20}>20% - Very High Risk</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Quick Presets</label>
+                  <select
+                    onChange={(e) => {
+                      const preset = e.target.value;
+                      if (preset === 'production') {
+                        setIncludeKerf(true);
+                        setKerfWidth(0.125);
+                        setBreakageBuffer(10);
+                      } else if (preset === 'theoretical') {
+                        setIncludeKerf(false);
+                        setBreakageBuffer(5);
+                      } else if (preset === 'conservative') {
+                        setIncludeKerf(true);
+                        setKerfWidth(0.1875);
+                        setBreakageBuffer(15);
+                      }
+                    }}
+                    className="border px-3 py-2 rounded w-full text-sm"
+                  >
+                    <option value="">Select Preset...</option>
+                    <option value="theoretical">Theoretical Maximum</option>
+                    <option value="production">Production Standard</option>
+                    <option value="conservative">Conservative Estimate</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="bg-gray-100 p-3 rounded text-sm">
+                <strong>Settings Help:</strong>
+                <ul className="list-disc list-inside mt-1 space-y-1">
+                  <li><strong>Kerf:</strong> Accounts for material lost to saw blade width</li>
+                  <li><strong>Breakage Buffer:</strong> Extra material for handling/installation damage</li>
+                  <li><strong>Production Mode:</strong> Most realistic for actual fabrication</li>
+                  <li><strong>Theoretical Mode:</strong> Maximum possible pieces (no cutting waste)</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+
         {products.map((product, index) => (
-          <div key={index} className="bg-gray-50 p-4 rounded shadow space-y-4 text-left relative">
+          <div key={product.id} className="bg-gray-50 p-4 rounded shadow space-y-4 text-left relative">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-gray-700">Product {index + 1}</h3>
+              {products.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeProduct(index)}
+                  className="text-red-600 font-bold text-xl hover:text-red-800"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            
             <div className="grid grid-cols-3 gap-4">
               <select
                 value={product.stone}
                 onChange={(e) => updateProduct(index, 'stone', e.target.value)}
                 className="border px-4 py-2 rounded"
               >
+                <option value="">Select Stone Type...</option>
                 {stoneOptions.map((stone, i) => (
                   <option key={i} value={stone["Stone Type"]}>{stone["Stone Type"]}</option>
                 ))}
@@ -515,6 +1014,9 @@ export default function StoneTopEstimator() {
               >
                 <option value="Eased">Eased</option>
                 <option value="1.5 mitered">1.5" mitered</option>
+                <option value="Bullnose">Bullnose</option>
+                <option value="Ogee">Ogee</option>
+                <option value="Beveled">Beveled</option>
               </select>
               <input
                 type="file"
@@ -539,56 +1041,27 @@ export default function StoneTopEstimator() {
               rows={2}
             />
 
-            {products.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeProduct(index)}
-                className="text-red-600 font-bold text-xl absolute top-2 right-2 hover:text-red-800"
-              >
-                ×
-              </button>
+            {/* Layout Preview for Individual Product */}
+            {showLayoutPreviews && product.result && product.stone && product.width && product.depth && (
+              <SlabLayoutPreview 
+                result={product.result}
+                stone={product.stone}
+                width={product.width}
+                depth={product.depth}
+                quantity={product.quantity}
+              />
             )}
           </div>
         ))}
 
-        <button
-          onClick={addProduct}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Add Another Product
-        </button>
-
-        <div className="bg-gray-50 p-4 rounded shadow-md space-y-4 text-left">
-          <h2 className="text-lg font-semibold">Contact Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={userInfo?.name || ""}
-              onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
-              className="border px-4 py-2 rounded w-full"
-              required
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={userInfo?.email || ""}
-              onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
-              className="border px-4 py-2 rounded w-full"
-              required
-            />
-            <input
-              type="tel"
-              placeholder="Phone Number"
-              value={userInfo?.phone || ""}
-              onChange={(e) => setUserInfo({ ...userInfo, phone: e.target.value })}
-              className="border px-4 py-2 rounded w-full"
-              required
-            />
-          </div>
-        </div>
-
         <div className="flex space-x-4 justify-center">
+          <button
+            onClick={addProduct}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Add Another Product
+          </button>
+          
           <button
             onClick={calculateAll}
             className="px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700 font-semibold"
@@ -606,9 +1079,35 @@ export default function StoneTopEstimator() {
           )}
         </div>
 
+        {/* Mixed Stone Types Summary */}
+        {allResults.length > 0 && (
+          <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-2">Quote Summary</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <strong>Total Products:</strong> {allResults.length}
+              </div>
+              <div>
+                <strong>Stone Types:</strong> {[...new Set(allResults.map(r => r.stone))].length}
+              </div>
+              <div>
+                <strong>Total Pieces:</strong> {allResults.reduce((sum, p) => sum + parseInt(p.quantity || 0), 0)}
+              </div>
+              <div>
+                <strong>Total Quote:</strong> ${allResults.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0).toFixed(2)}
+              </div>
+            </div>
+          </div>
+        )}
+
         {allResults.length > 0 && (
           <div className="mt-6 w-full overflow-x-auto">
-            <h3 className="text-lg font-semibold mb-4">Optimized Calculation Results</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              Optimized Results 
+              <span className="text-sm font-normal text-gray-600 ml-2">
+                ({includeKerf ? `Production Mode (${kerfWidth}" kerf)` : 'Theoretical Mode (no kerf)'})
+              </span>
+            </h3>
             <table className="min-w-full border-collapse border text-sm">
               <thead>
                 <tr className="bg-gray-200">
@@ -685,12 +1184,19 @@ export default function StoneTopEstimator() {
 
             {allResults.some(p => p.result?.optimization) && (
               <div className="mt-6 bg-gray-50 p-4 rounded">
-                <h4 className="font-semibold text-gray-800 mb-2">Slab Optimization Details</h4>
-                <p className="text-sm text-gray-600">
-                  Advanced algorithms have been used to minimize waste and optimize slab usage. 
-                  The efficiency percentages shown reflect how well each piece layout utilizes the available slab area.
-                  Mixed orientations are used to maximize the number of tops per slab.
-                </p>
+                <h4 className="font-semibold text-gray-800 mb-2">Optimization Summary</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p><strong>Mode:</strong> {includeKerf ? 'Production (with kerf)' : 'Theoretical (no kerf)'}</p>
+                    <p><strong>Kerf Width:</strong> {includeKerf ? `${kerfWidth}"` : 'N/A'}</p>
+                    <p><strong>Breakage Buffer:</strong> {breakageBuffer}%</p>
+                  </div>
+                  <div>
+                    <p><strong>Algorithm:</strong> Mixed orientation optimization</p>
+                    <p><strong>Efficiency Method:</strong> Maximum pieces per slab</p>
+                    <p><strong>Waste Minimization:</strong> Advanced layout planning</p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
