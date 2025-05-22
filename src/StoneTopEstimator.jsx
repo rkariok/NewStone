@@ -1147,38 +1147,51 @@ export default function StoneTopEstimator() {
                           const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
                           const slabW = parseFloat(slabData?.["Slab Width"]) || 126;
                           const slabH = parseFloat(slabData?.["Slab Height"]) || 63;
-                          
-                          // For the 8-piece case
-                          if (pieceW === 24 && pieceH === 36 && slabW === 126 && slabH === 63 && topsPerSlab === 8) {
-                            return (
-                              <div className="text-xs space-y-1">
-                                <div>• 3 horizontal pieces (36×24)</div>
-                                <div>• 5 vertical pieces (24×36)</div>
-                                <div className="font-semibold">Total: 8 pieces</div>
-                              </div>
-                            );
-                          } else {
-                            return (
-                              <div className="text-xs space-y-1">
-                                <div>• {topsPerSlab} pieces total</div>
-                                <div className="font-semibold">Total: {topsPerSlab} pieces</div>
-                              </div>
-                            );
-                          }
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-sm">Click "Calculate with Optimization" to generate layout preview</div>
-                    <div className="text-xs mt-1">Preview will show optimal piece placement for {product.stone}</div>
-                  </div>
-                )}
+                       {showLayoutPreviews && product.stone && product.width && product.depth ? (
+  product.result ? (
+    <div className="bg-white border rounded-lg p-4 mt-4">
+      <h5 className="font-semibold mb-2 text-sm">
+        Layout Preview: {product.stone} ({product.width}×{product.depth}) – {product.quantity} pieces
+      </h5>
+
+      {/* Layout Breakdown */}
+      <div className="text-xs space-y-1">
+        {(() => {
+          const pieceW = parseFloat(product.width);
+          const pieceH = parseFloat(product.depth);
+          const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
+          const slabW = parseFloat(slabData?.["Slab Width"]) || 126;
+          const slabH = parseFloat(slabData?.["Slab Height"]) || 63;
+          const topsPerSlab = product.result.topsPerSlab;
+
+          // For the 8-piece case
+          if (pieceW === 24 && pieceH === 36 && slabW === 126 && slabH === 63 && topsPerSlab === 8) {
+            return (
+              <div className="text-xs space-y-1">
+                <div>• 3 horizontal pieces (36×24)</div>
+                <div>• 5 vertical pieces (24×36)</div>
+                <div className="font-semibold">Total: 8 pieces</div>
               </div>
-            )}
-          </div>
-        ))}
+            );
+          } else {
+            return (
+              <div className="text-xs space-y-1">
+                <div>• {topsPerSlab} pieces total</div>
+                <div className="font-semibold">Total: {topsPerSlab} pieces</div>
+              </div>
+            );
+          }
+        })()}
+      </div>
+    </div>
+  ) : (
+    <div className="text-center py-8 text-gray-500">
+      <div className="text-sm">Click "Calculate with Optimization" to generate layout preview</div>
+      <div className="text-xs mt-1">Preview will show optimal piece placement for {product.stone}</div>
+    </div>
+  )
+) : null}
+
 
         <div className="flex space-x-4 justify-center">
           <button
