@@ -200,33 +200,34 @@ export default function StoneTopEstimator() {
     return { fits: false };
   };
 
-  // Generate optimal layout pattern with exact positions
+  // Generate optimal layout pattern with exact positions - FIXED VERSION
   const generateOptimalLayout = (pieceW, pieceH, slabW, slabH, kerf) => {
-    const layouts = [];
+    let bestLayout = { pieces: [], totalPieces: 0, efficiency: 0 };
     
+    // Test all possible arrangements and find the one with most pieces
     const arrangements = [
-      { orientation: 'mixed', priority: 'horizontal' },
-      { orientation: 'mixed', priority: 'vertical' },
-      { orientation: 'single', type: 'w×h' },
-      { orientation: 'single', type: 'h×w' }
+      { type: 'single', orientation: 'w×h' },
+      { type: 'single', orientation: 'h×w' },
+      { type: 'mixed', priority: 'horizontal_first' },
+      { type: 'mixed', priority: 'vertical_first' }
     ];
 
     for (const arrangement of arrangements) {
-      const layout = calculateLayoutPositions(pieceW, pieceH, slabW, slabH, kerf, arrangement);
-      layouts.push(layout);
+      const layout = calculateDetailedLayout(pieceW, pieceH, slabW, slabH, kerf, arrangement);
+      if (layout.totalPieces > bestLayout.totalPieces) {
+        bestLayout = layout;
+      }
     }
 
-    return layouts.reduce((best, current) => 
-      current.pieces.length > best.pieces.length ? current : best
-    );
+    return bestLayout;
   };
 
-  // Calculate exact positions for pieces in the layout - OPTIMIZED VERSION
-  const calculateLayoutPositions = (pieceW, pieceH, slabW, slabH, kerf, arrangement) => {
+  // Calculate detailed layout with exact piece positions
+  const calculateDetailedLayout = (pieceW, pieceH, slabW, slabH, kerf, arrangement) => {
     const pieces = [];
 
-    if (arrangement.orientation === 'single') {
-      const [w, h] = arrangement.type === 'w×h' ? [pieceW, pieceH] : [pieceH, pieceW];
+    if (arrangement.type === 'single') {
+      const [w, h] = arrangement.orientation === 'w×h' ? [pieceW, pieceH] : [pieceH, pieceW];
       const cols = Math.floor((slabW + kerf) / (w + kerf));
       const rows = Math.floor((slabH + kerf) / (h + kerf));
 
@@ -237,23 +238,24 @@ export default function StoneTopEstimator() {
             y: row * (h + kerf),
             width: w,
             height: h,
-            orientation: arrangement.type,
+            orientation: arrangement.orientation,
             id: pieces.length + 1
           });
         }
       }
-    } else if (arrangement.orientation === 'mixed') {
-      // CORRECTED: Implement the 8-piece layout like CutList Optimizer
-      if (arrangement.priority === 'horizontal') {
-        // First: Place pieces in orientation 2 (36×24) horizontally
-        const cols2 = Math.floor((slabW + kerf) / (pieceH + kerf)); // 126/36.125 = 3
-        const rows2 = 1; // One row of horizontal pieces
+    } else if (arrangement.type === 'mixed') {
+      if (arrangement.priority === 'horizontal_first') {
+        // CORRECT IMPLEMENTATION: First place horizontal pieces (36×24), then vertical (24×36)
         
-        for (let row = 0; row < rows2; row++) {
-          for (let col = 0; col < cols2; col++) {
+        // Step 1: Place as many horizontal pieces (36×24) as possible in first row
+        const horizontalCols = Math.floor((slabW + kerf) / (pieceH + kerf)); // 126/36.125 = 3
+        const horizontalRows = 1; // Start with 1 row
+        
+        for (let row = 0; row < horizontalRows; row++) {
+          for (let col = 0; col < horizontalCols; col++) {
             pieces.push({
-              x: col * (pieceH + kerf), // 36.125 spacing
-              y: row * (pieceW + kerf), // 24.125 spacing
+              x: col * (pieceH + kerf), // 36 + kerf spacing
+              y: row * (pieceW + kerf), // 24 + kerf spacing
               width: pieceH, // 36
               height: pieceW, // 24
               orientation: 'h×w',
@@ -262,18 +264,18 @@ export default function StoneTopEstimator() {
           }
         }
 
-        // Second: Fill remaining space with orientation 1 (24×36) vertically
-        const usedHeight = rows2 * (pieceW + kerf) - kerf; // 24
-        const remainingHeight = slabH - usedHeight; // 63 - 24 = 39
+        // Step 2: Fill remaining space with vertical pieces (24×36)
+        const usedHeight = horizontalRows * (pieceW + kerf) - (kerf > 0 ? kerf : 0);
+        const remainingHeight = slabH - usedHeight;
         
-        if (remainingHeight >= pieceH) { // 39 >= 36
-          const cols1 = Math.floor((slabW + kerf) / (pieceW + kerf)); // 126/24.125 = 5
-          const rows1 = Math.floor((remainingHeight + kerf) / (pieceH + kerf)); // 39/36.125 = 1
+        if (remainingHeight >= pieceH) {
+          const verticalCols = Math.floor((slabW + kerf) / (pieceW + kerf)); // 126/24.125 = 5
+          const verticalRows = Math.floor((remainingHeight + kerf) / (pieceH + kerf)); // Should be 1
           
-          for (let row = 0; row < rows1; row++) {
-            for (let col = 0; col < cols1; col++) {
+          for (let row = 0; row < verticalRows; row++) {
+            for (let col = 0; col < verticalCols; col++) {
               pieces.push({
-                x: col * (pieceW + kerf), // 24.125 spacing
+                x: col * (pieceW + kerf), // 24 + kerf spacing
                 y: usedHeight + row * (pieceH + kerf), // Start after horizontal pieces
                 width: pieceW, // 24
                 height: pieceH, // 36
@@ -283,14 +285,52 @@ export default function StoneTopEstimator() {
             }
           }
         }
+      } else if (arrangement.priority === 'vertical_first') {
+        // Place vertical pieces first, then horizontal
+        const verticalRows = 1; // Try 1 row of vertical pieces first
+        const verticalCols = Math.floor((slabW + kerf) / (pieceW + kerf));
+        
+        for (let row = 0; row < verticalRows; row++) {
+          for (let col = 0; col < verticalCols; col++) {
+            pieces.push({
+              x: col * (pieceW + kerf),
+              y: row * (pieceH + kerf),
+              width: pieceW,
+              height: pieceH,
+              orientation: 'w×h',
+              id: pieces.length + 1
+            });
+          }
+        }
+
+        const usedHeight = verticalRows * (pieceH + kerf) - (kerf > 0 ? kerf : 0);
+        const remainingHeight = slabH - usedHeight;
+        
+        if (remainingHeight >= pieceW) {
+          const horizontalCols = Math.floor((slabW + kerf) / (pieceH + kerf));
+          const horizontalRows = Math.floor((remainingHeight + kerf) / (pieceW + kerf));
+          
+          for (let row = 0; row < horizontalRows; row++) {
+            for (let col = 0; col < horizontalCols; col++) {
+              pieces.push({
+                x: col * (pieceH + kerf),
+                y: usedHeight + row * (pieceW + kerf),
+                width: pieceH,
+                height: pieceW,
+                orientation: 'h×w',
+                id: pieces.length + 1
+              });
+            }
+          }
+        }
       }
-      // Could add more mixed arrangements here if needed
     }
 
     return {
       pieces,
       totalPieces: pieces.length,
-      efficiency: (pieces.length * pieceW * pieceH) / (slabW * slabH) * 100
+      efficiency: (pieces.length * pieceW * pieceH) / (slabW * slabH) * 100,
+      arrangement
     };
   };
 
@@ -866,113 +906,180 @@ export default function StoneTopEstimator() {
               rows={2}
             />
 
-            {/* Layout Preview for Individual Product */}
-            {showLayoutPreviews && product.result && product.stone && product.width && product.depth && (
+            {/* Layout Preview for Individual Product - FIXED VERSION */}
+            {showLayoutPreviews && product.stone && product.width && product.depth && (
               <div className="bg-white border rounded-lg p-4 mt-4">
                 <h5 className="font-semibold mb-2 text-sm">
-                  Layout Preview: {product.stone} ({product.width}×{product.depth})
+                  Layout Preview: {product.stone} ({product.width}×{product.depth}) - {product.quantity} pieces
                 </h5>
-                <div className="flex items-start space-x-4">
-                  {product.result?.optimization?.layoutPattern ? (
-                    <>
-                      <div 
-                        className="relative border-2 border-gray-400 bg-gray-100" 
-                        style={{ 
-                          width: Math.min(300, (parseFloat(stoneOptions.find(s => s["Stone Type"] === product.stone)?.["Slab Width"]) || 126) * 2),
-                          height: Math.min(200, (parseFloat(stoneOptions.find(s => s["Stone Type"] === product.stone)?.["Slab Height"]) || 63) * 2)
-                        }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300"></div>
+                
+                {product.result?.optimization?.layoutPattern ? (
+                  <div className="flex items-start space-x-4">
+                    {/* Slab Visual */}
+                    <div className="relative">
+                      {(() => {
+                        const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
+                        const slabWidth = parseFloat(slabData?.["Slab Width"]) || 126;
+                        const slabHeight = parseFloat(slabData?.["Slab Height"]) || 63;
+                        const scale = Math.min(320 / slabWidth, 240 / slabHeight);
+                        const displayWidth = slabWidth * scale;
+                        const displayHeight = slabHeight * scale;
+                        const layoutPattern = product.result.optimization.layoutPattern;
                         
-                        {/* Render pieces */}
-                        {product.result.optimization.layoutPattern.pieces.slice(0, Math.min(product.quantity, product.result.topsPerSlab)).map((piece, pieceIndex) => {
-                          const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
-                          const slabWidth = parseFloat(slabData?.["Slab Width"]) || 126;
-                          const slabHeight = parseFloat(slabData?.["Slab Height"]) || 63;
-                          const scale = Math.min(300 / slabWidth, 200 / slabHeight);
-                          
-                          return (
-                            <div
-                              key={pieceIndex}
-                              className="absolute border border-blue-600 bg-blue-200 bg-opacity-70 flex items-center justify-center text-xs font-bold text-blue-800"
-                              style={{
-                                left: piece.x * scale,
-                                top: piece.y * scale,
-                                width: piece.width * scale,
-                                height: piece.height * scale,
-                                fontSize: Math.max(8, scale * 2)
-                              }}
-                            >
-                              {pieceIndex + 1}
+                        return (
+                          <div 
+                            className="relative border-2 border-gray-800 bg-stone-100"
+                            style={{ width: displayWidth, height: displayHeight }}
+                          >
+                            {/* Slab background with stone texture */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-stone-200 via-stone-300 to-stone-400"></div>
+                            
+                            {/* Grid lines for reference */}
+                            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                              <defs>
+                                <pattern id="grid" width={scale * 12} height={scale * 12} patternUnits="userSpaceOnUse">
+                                  <path d={`M ${scale * 12} 0 L 0 0 0 ${scale * 12}`} fill="none" stroke="#e5e7eb" strokeWidth="0.5"/>
+                                </pattern>
+                              </defs>
+                              <rect width="100%" height="100%" fill="url(#grid)" />
+                            </svg>
+                            
+                            {/* Render the actual optimized pieces */}
+                            {layoutPattern.pieces.slice(0, Math.min(product.quantity, product.result.topsPerSlab)).map((piece, pieceIndex) => {
+                              const isHorizontal = piece.orientation === 'h×w';
+                              return (
+                                <div key={pieceIndex}>
+                                  {/* Main piece */}
+                                  <div
+                                    className={`absolute border-2 flex items-center justify-center text-xs font-bold
+                                      ${isHorizontal ? 'border-orange-600 bg-orange-200 text-orange-800' : 'border-blue-600 bg-blue-200 text-blue-800'}`}
+                                    style={{
+                                      left: piece.x * scale,
+                                      top: piece.y * scale,
+                                      width: piece.width * scale,
+                                      height: piece.height * scale,
+                                      fontSize: Math.max(8, Math.min(12, scale * 1.5))
+                                    }}
+                                  >
+                                    <div className="text-center">
+                                      <div>{pieceIndex + 1}</div>
+                                      <div className="text-xs opacity-75">
+                                        {piece.width}×{piece.height}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Kerf lines if enabled */}
+                                  {includeKerf && (
+                                    <>
+                                      {/* Right kerf line */}
+                                      {piece.x + piece.width < slabWidth - 0.1 && (
+                                        <div
+                                          className="absolute bg-red-500 opacity-60"
+                                          style={{
+                                            left: (piece.x + piece.width) * scale,
+                                            top: piece.y * scale,
+                                            width: Math.max(1, kerfWidth * scale),
+                                            height: piece.height * scale
+                                          }}
+                                        />
+                                      )}
+                                      {/* Bottom kerf line */}
+                                      {piece.y + piece.height < slabHeight - 0.1 && (
+                                        <div
+                                          className="absolute bg-red-500 opacity-60"
+                                          style={{
+                                            left: piece.x * scale,
+                                            top: (piece.y + piece.height) * scale,
+                                            width: piece.width * scale,
+                                            height: Math.max(1, kerfWidth * scale)
+                                          }}
+                                        />
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            
+                            {/* Slab dimensions overlay */}
+                            <div className="absolute -top-6 left-0 right-0 text-center text-xs text-gray-600">
+                              {slabWidth}"
                             </div>
-                          );
-                        })}
-                        
-                        {/* Kerf lines */}
-                        {includeKerf && product.result.optimization.layoutPattern.pieces.map((piece, pieceIndex) => {
-                          const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
-                          const slabWidth = parseFloat(slabData?.["Slab Width"]) || 126;
-                          const slabHeight = parseFloat(slabData?.["Slab Height"]) || 63;
-                          const scale = Math.min(300 / slabWidth, 200 / slabHeight);
-                          
-                          return (
-                            <div key={`kerf-${pieceIndex}`}>
-                              {piece.x + piece.width < slabWidth && (
-                                <div
-                                  className="absolute bg-red-400 opacity-50"
-                                  style={{
-                                    left: (piece.x + piece.width) * scale,
-                                    top: piece.y * scale,
-                                    width: kerfWidth * scale,
-                                    height: piece.height * scale
-                                  }}
-                                />
-                              )}
-                              {piece.y + piece.height < slabHeight && (
-                                <div
-                                  className="absolute bg-red-400 opacity-50"
-                                  style={{
-                                    left: piece.x * scale,
-                                    top: (piece.y + piece.height) * scale,
-                                    width: piece.width * scale,
-                                    height: kerfWidth * scale
-                                  }}
-                                />
-                              )}
+                            <div className="absolute top-0 bottom-0 -left-8 flex items-center">
+                              <div className="transform -rotate-90 text-xs text-gray-600">
+                                {slabHeight}"
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    
+                    {/* Legend and Stats */}
+                    <div className="text-xs space-y-2 min-w-48">
+                      <div className="font-semibold text-gray-800 mb-3">Layout Analysis</div>
                       
-                      {/* Legend */}
-                      <div className="text-xs space-y-1">
+                      {/* Piece Legend */}
+                      <div className="space-y-1">
                         <div className="flex items-center space-x-2">
                           <div className="w-4 h-4 bg-blue-200 border border-blue-600"></div>
-                          <span>Pieces ({product.result.optimization.layoutPattern.pieces.length} max)</span>
+                          <span>Vertical: {product.width}×{product.depth}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-4 h-4 bg-orange-200 border border-orange-600"></div>
+                          <span>Horizontal: {product.depth}×{product.width}</span>
                         </div>
                         {includeKerf && (
                           <div className="flex items-center space-x-2">
-                            <div className="w-4 h-4 bg-red-400 opacity-50"></div>
-                            <span>Kerf ({kerfWidth}")</span>
+                            <div className="w-4 h-4 bg-red-500 opacity-60"></div>
+                            <span>Kerf: {kerfWidth}"</span>
                           </div>
                         )}
                         <div className="flex items-center space-x-2">
-                          <div className="w-4 h-4 bg-gray-300 border"></div>
+                          <div className="w-4 h-4 bg-stone-300 border border-gray-400"></div>
                           <span>Waste</span>
                         </div>
-                        <div className="pt-2 text-gray-600">
-                          <div>Slab: {parseFloat(stoneOptions.find(s => s["Stone Type"] === product.stone)?.["Slab Width"]) || 126}" × {parseFloat(stoneOptions.find(s => s["Stone Type"] === product.stone)?.["Slab Height"]) || 63}"</div>
-                          <div>Efficiency: {product.result.efficiency?.toFixed(1)}%</div>
-                          <div>Pieces/Slab: {product.result.topsPerSlab}</div>
-                        </div>
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-gray-500 text-sm">
-                      Layout preview will appear after calculation
+                      
+                      {/* Statistics */}
+                      <div className="pt-2 border-t space-y-1 text-gray-700">
+                        <div><strong>Stone:</strong> {product.stone}</div>
+                        <div><strong>Slab:</strong> {(() => {
+                          const slabData = stoneOptions.find(s => s["Stone Type"] === product.stone);
+                          return `${parseFloat(slabData?.["Slab Width"]) || 126}" × ${parseFloat(slabData?.["Slab Height"]) || 63}"`;
+                        })()}</div>
+                        <div><strong>Max Pieces/Slab:</strong> {product.result.topsPerSlab}</div>
+                        <div><strong>Efficiency:</strong> <span className={`font-semibold ${product.result.efficiency > 80 ? 'text-green-600' : product.result.efficiency > 60 ? 'text-yellow-600' : 'text-red-600'}`}>{product.result.efficiency?.toFixed(1)}%</span></div>
+                        <div><strong>Slabs Needed:</strong> {product.result.totalSlabsNeeded}</div>
+                        <div><strong>Layout:</strong> {product.result.optimization.layoutPattern.arrangement?.type || 'Mixed'}</div>
+                      </div>
+                      
+                      {/* Piece breakdown */}
+                      {product.result.optimization.layoutPattern.pieces.length > 0 && (
+                        <div className="pt-2 border-t">
+                          <div className="font-semibold mb-1">Piece Breakdown:</div>
+                          {(() => {
+                            const verticalPieces = product.result.optimization.layoutPattern.pieces.filter(p => p.orientation === 'w×h').length;
+                            const horizontalPieces = product.result.optimization.layoutPattern.pieces.filter(p => p.orientation === 'h×w').length;
+                            return (
+                              <div className="text-xs space-y-1">
+                                {verticalPieces > 0 && <div>• {verticalPieces} vertical pieces</div>}
+                                {horizontalPieces > 0 && <div>• {horizontalPieces} horizontal pieces</div>}
+                                <div className="font-semibold">Total: {verticalPieces + horizontalPieces} pieces</div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-sm">Click "Calculate with Optimization" to generate layout preview</div>
+                    <div className="text-xs mt-1">Preview will show optimal piece placement for {product.stone}</div>
+                  </div>
+                )}
               </div>
             )}
           </div>
