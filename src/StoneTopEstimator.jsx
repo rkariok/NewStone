@@ -67,7 +67,6 @@ export default function StoneTopEstimator() {
 
   // Enhanced cutlist optimization logic
   const optimizeCutList = (pieces, slabWidth, slabHeight) => {
-    // Sort pieces by area (largest first) for better optimization
     const sortedPieces = pieces.map((piece, index) => ({
       ...piece,
       area: piece.width * piece.depth,
@@ -77,11 +76,9 @@ export default function StoneTopEstimator() {
     const slabs = [];
     const unplacedPieces = [];
 
-    // Try to fit pieces into slabs
     for (const piece of sortedPieces) {
       let placed = false;
       
-      // Try both orientations of the piece
       const orientations = [
         { width: piece.width, depth: piece.depth },
         { width: piece.depth, depth: piece.width }
@@ -90,7 +87,6 @@ export default function StoneTopEstimator() {
       for (const orientation of orientations) {
         if (placed) break;
 
-        // Try to place in existing slabs
         for (const slab of slabs) {
           if (canPlacePiece(slab, orientation, slabWidth, slabHeight)) {
             placePiece(slab, { ...piece, ...orientation });
@@ -99,7 +95,6 @@ export default function StoneTopEstimator() {
           }
         }
 
-        // If not placed, try to create a new slab
         if (!placed && orientation.width <= slabWidth && orientation.depth <= slabHeight) {
           const newSlab = {
             pieces: [{ ...piece, ...orientation, x: 0, y: 0 }],
@@ -145,23 +140,19 @@ export default function StoneTopEstimator() {
   };
 
   const placePiece = (slab, piece) => {
-    // Find the best fitting space
     const bestSpace = slab.availableSpaces
       .filter(space => piece.width <= space.width && piece.depth <= space.height)
       .sort((a, b) => (a.width * a.height) - (b.width * b.height))[0];
 
     if (bestSpace) {
-      // Place the piece
       piece.x = bestSpace.x;
       piece.y = bestSpace.y;
       slab.pieces.push(piece);
       slab.usedArea += piece.width * piece.depth;
 
-      // Remove the used space
       const spaceIndex = slab.availableSpaces.indexOf(bestSpace);
       slab.availableSpaces.splice(spaceIndex, 1);
 
-      // Create new available spaces
       if (bestSpace.width > piece.width) {
         slab.availableSpaces.push({
           x: bestSpace.x + piece.width,
@@ -180,13 +171,11 @@ export default function StoneTopEstimator() {
         });
       }
 
-      // Merge adjacent spaces (simplified)
       mergeSpaces(slab.availableSpaces);
     }
   };
 
   const updateAvailableSpaces = (slab, slabWidth, slabHeight) => {
-    // Remove overlapping and invalid spaces
     slab.availableSpaces = slab.availableSpaces.filter(space => 
       space.width > 0 && space.height > 0 && 
       space.x + space.width <= slabWidth && 
@@ -195,20 +184,17 @@ export default function StoneTopEstimator() {
   };
 
   const mergeSpaces = (spaces) => {
-    // Simplified space merging - can be enhanced for better optimization
     for (let i = 0; i < spaces.length; i++) {
       for (let j = i + 1; j < spaces.length; j++) {
         const space1 = spaces[i];
         const space2 = spaces[j];
         
-        // Check if spaces can be merged horizontally
         if (space1.y === space2.y && space1.height === space2.height &&
             space1.x + space1.width === space2.x) {
           space1.width += space2.width;
           spaces.splice(j, 1);
           j--;
         }
-        // Check if spaces can be merged vertically
         else if (space1.x === space2.x && space1.width === space2.width &&
                  space1.y + space1.height === space2.y) {
           space1.height += space2.height;
@@ -293,7 +279,6 @@ export default function StoneTopEstimator() {
       const slabWidth = parseFloat(stone["Slab Width"]) || 63;
       const slabHeight = parseFloat(stone["Slab Height"]) || 126;
 
-      // Create pieces array for cutlist optimization
       const pieces = Array(quantity).fill().map((_, i) => ({
         id: i + 1,
         width: w,
@@ -301,7 +286,6 @@ export default function StoneTopEstimator() {
         name: `${product.stone} #${i + 1}`
       }));
 
-      // Run cutlist optimization
       const optimization = optimizeCutList(pieces, slabWidth, slabHeight);
       
       const area = w * d;
@@ -309,13 +293,11 @@ export default function StoneTopEstimator() {
       const totalSlabsNeeded = optimization.totalSlabsNeeded;
       const efficiency = optimization.efficiency;
       
-      // Calculate costs with optimization
-      const materialCost = (slabCost * totalSlabsNeeded) * 1.10; // 10% buffer for breakage
+      const materialCost = (slabCost * totalSlabsNeeded) * 1.10;
       const fabricationCost = usableAreaSqft * fabCost;
       const rawCost = materialCost + fabricationCost;
       const finalPrice = rawCost * markup;
 
-      // For compatibility with legacy calculations
       const topsPerSlab = Math.floor((slabWidth * slabHeight) / area);
 
       return {
@@ -329,14 +311,13 @@ export default function StoneTopEstimator() {
           rawCost,
           finalPrice,
           optimization,
-          topsPerSlab // Keep for backward compatibility
+          topsPerSlab
         }
       };
     });
 
     setAllResults(results);
 
-    // Convert results to SheetDB format
     const sheetRows = results.map(p => {
       if (!p.result) return null;
       
@@ -363,7 +344,6 @@ export default function StoneTopEstimator() {
 
     console.log("Sending optimized data to SheetDB:", sheetRows);
 
-    // Save to Google Sheets
     fetch("https://sheetdb.io/api/v1/meao888u7pgqn", {
       method: "POST",
       headers: {
@@ -418,7 +398,6 @@ export default function StoneTopEstimator() {
     const element = document.createElement('div');
     element.className = 'pdf-content p-6';
     
-    // Add company logo and header
     element.innerHTML = `
       <div style="text-align: center; margin-bottom: 20px;">
         <h1 style="font-size: 24px; font-weight: bold;">AIC SURFACES - OPTIMIZED STONE QUOTE</h1>
@@ -435,12 +414,10 @@ export default function StoneTopEstimator() {
       <h2 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Optimized Quote Details</h2>
     `;
     
-    // Create table for products
     const table = document.createElement('table');
     table.style.width = '100%';
     table.style.borderCollapse = 'collapse';
     
-    // Add table header
     table.innerHTML = `
       <thead>
         <tr style="background-color: #f2f2f2;">
@@ -469,7 +446,6 @@ export default function StoneTopEstimator() {
       </tbody>
     `;
     
-    // Add total and optimization summary
     const totalPrice = allResults.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0);
     const totalSlabs = allResults.reduce((sum, p) => sum + (p.result?.totalSlabsNeeded || 0), 0);
     const avgEfficiency = allResults.reduce((sum, p) => sum + (p.result?.efficiency || 0), 0) / allResults.length;
@@ -485,7 +461,6 @@ export default function StoneTopEstimator() {
     
     element.appendChild(table);
     
-    // Add optimization summary
     element.innerHTML += `
       <div style="margin-top: 20px; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
         <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">Optimization Summary</h3>
@@ -495,14 +470,12 @@ export default function StoneTopEstimator() {
       </div>
     `;
     
-    // Add footer
     element.innerHTML += `
       <div style="margin-top: 30px;">
         <p style="font-size: 12px;">This optimized quote is valid for 30 days. Calculations include advanced cutlist optimization for maximum material efficiency. For questions, please contact AIC Surfaces.</p>
       </div>
     `;
     
-    // Generate PDF
     const opt = {
       margin: 10,
       filename: `AIC_Optimized_Quote_${userInfo.name.replace(/\s+/g, '_')}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`,
@@ -700,6 +673,7 @@ export default function StoneTopEstimator() {
               <tbody>
                 {allResults.map((p, i) => (
                   <tr key={i} className="text-center">
+                    <td className="border px-4 py-2">{p.stone}</td>
                     <td className="border px-4 py-2">{p.width}×{p.depth}</td>
                     <td className="border px-4 py-2">{p.quantity}</td>
                     <td className="border px-4 py-2">{p.edgeDetail}</td>
@@ -731,7 +705,6 @@ export default function StoneTopEstimator() {
               </tfoot>
             </table>
 
-            {/* Optimization Summary */}
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-blue-50 p-4 rounded">
                 <h4 className="font-semibold text-blue-800">Total Slabs Needed</h4>
@@ -752,7 +725,6 @@ export default function StoneTopEstimator() {
               </div>
             </div>
 
-            {/* Cutlist Optimization Details */}
             {allResults.some(p => p.result?.optimization) && (
               <div className="mt-6 bg-gray-50 p-4 rounded">
                 <h4 className="font-semibold text-gray-800 mb-2">Cutlist Optimization Details</h4>
@@ -767,5 +739,4 @@ export default function StoneTopEstimator() {
       </div>
     </div>
   );
-}.stone}</td>
-                    <td className="border px-4 py-2">{p
+}
