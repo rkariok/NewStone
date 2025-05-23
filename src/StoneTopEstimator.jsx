@@ -1198,6 +1198,9 @@ const StoneTopEstimator = () => {
                   <th className="border px-4 py-2">Tops/Slab</th>
                   <th className="border px-4 py-2">Slabs Needed</th>
                   <th className="border px-4 py-2">Efficiency</th>
+                  <th className="border px-4 py-2">Material $</th>
+                  <th className="border px-4 py-2">Fab $</th>
+                  <th className="border px-4 py-2">Raw $</th>
                   <th className="border px-4 py-2">Final $</th>
                 </tr>
               </thead>
@@ -1247,6 +1250,15 @@ const StoneTopEstimator = () => {
                         {p.result?.efficiency?.toFixed(1) || '0'}%
                       </span>
                     </td>
+                    <td className="border px-4 py-2 font-semibold text-blue-700">
+                      ${p.result?.materialCost?.toFixed(2) || '0.00'}
+                    </td>
+                    <td className="border px-4 py-2 font-semibold text-orange-600">
+                      ${p.result?.fabricationCost?.toFixed(2) || '0.00'}
+                    </td>
+                    <td className="border px-4 py-2 font-semibold text-gray-700">
+                      ${p.result?.rawCost?.toFixed(2) || '0.00'}
+                    </td>
                     <td className="border px-4 py-2 font-semibold text-green-600">
                       ${p.result?.finalPrice?.toFixed(2) || '0.00'}
                     </td>
@@ -1255,8 +1267,17 @@ const StoneTopEstimator = () => {
               </tbody>
               <tfoot>
                 <tr className="bg-gray-100 font-bold">
-                  <td colSpan={10} className="border px-4 py-2 text-right">Total:</td>
-                  <td className="border px-4 py-2 text-center">
+                  <td colSpan={10} className="border px-4 py-2 text-right">Totals:</td>
+                  <td className="border px-4 py-2 text-center text-blue-700">
+                    ${allResults.reduce((sum, p) => sum + (p.result?.materialCost || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="border px-4 py-2 text-center text-orange-600">
+                    ${allResults.reduce((sum, p) => sum + (p.result?.fabricationCost || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="border px-4 py-2 text-center text-gray-700">
+                    ${allResults.reduce((sum, p) => sum + (p.result?.rawCost || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="border px-4 py-2 text-center text-green-600">
                     ${allResults.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0).toFixed(2)}
                   </td>
                 </tr>
