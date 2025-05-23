@@ -77,16 +77,17 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
         }
         
         const totalPieces = pieces1 + pieces2;
-        if (totalPieces >= maxFound && totalPieces <= targetPieces) {
-          maxFound = totalPieces;
-          
+        
+        // Accept any layout that can fit our targetPieces, prioritizing layouts that use exactly targetPieces
+        if (totalPieces >= targetPieces && (totalPieces <= maxFound + 1 || bestLayout.length === 0)) {
           // Generate this layout
           const tempLayout = [];
           
-          // Add orientation 1 pieces (vertical)
+          // Add orientation 1 pieces (vertical) - but only up to what we need
           const cols1 = Math.floor((slabWidth + kerf) / (pieceWidth + kerf));
-          for (let row = 0; row < rows1; row++) {
-            for (let col = 0; col < cols1; col++) {
+          let piecesAdded = 0;
+          for (let row = 0; row < rows1 && piecesAdded < targetPieces; row++) {
+            for (let col = 0; col < cols1 && piecesAdded < targetPieces; col++) {
               tempLayout.push({
                 x: col * (pieceWidth + kerf),
                 y: row * (pieceHeight + kerf),
@@ -95,15 +96,16 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
                 orientation: 'vertical',
                 id: tempLayout.length + 1
               });
+              piecesAdded++;
             }
           }
           
-          // Add orientation 2 pieces (horizontal)
-          if (remainingHeight >= pieceWidth) {
+          // Add orientation 2 pieces (horizontal) - only if we still need more pieces
+          if (piecesAdded < targetPieces && remainingHeight >= pieceWidth) {
             const rows2 = Math.floor((remainingHeight + kerf) / (pieceWidth + kerf));
             const cols2 = Math.floor((slabWidth + kerf) / (pieceHeight + kerf));
-            for (let row = 0; row < rows2; row++) {
-              for (let col = 0; col < cols2; col++) {
+            for (let row = 0; row < rows2 && piecesAdded < targetPieces; row++) {
+              for (let col = 0; col < cols2 && piecesAdded < targetPieces; col++) {
                 tempLayout.push({
                   x: col * (pieceHeight + kerf),
                   y: usedHeight1 + row * (pieceWidth + kerf),
@@ -112,12 +114,15 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
                   orientation: 'horizontal',
                   id: tempLayout.length + 1
                 });
+                piecesAdded++;
               }
             }
           }
           
-          if (totalPieces === targetPieces) {
-            bestLayout = tempLayout;
+          // Use this layout if it fits our pieces better
+          if (tempLayout.length >= targetPieces || tempLayout.length > bestLayout.length) {
+            bestLayout = tempLayout.slice(0, targetPieces);
+            maxFound = tempLayout.length;
           }
         }
       }
@@ -136,16 +141,17 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
         }
         
         const totalPieces = pieces1 + pieces2;
-        if (totalPieces > maxFound && totalPieces <= targetPieces) {
-          maxFound = totalPieces;
-          
+        
+        // Accept any layout that can fit our targetPieces
+        if (totalPieces >= targetPieces && (totalPieces < maxFound || bestLayout.length < targetPieces)) {
           // Generate this layout
           const tempLayout = [];
           
-          // Add orientation 2 pieces (horizontal)
+          // Add orientation 2 pieces (horizontal) - but only up to what we need
           const cols2 = Math.floor((slabWidth + kerf) / (pieceHeight + kerf));
-          for (let row = 0; row < rows2; row++) {
-            for (let col = 0; col < cols2; col++) {
+          let piecesAdded = 0;
+          for (let row = 0; row < rows2 && piecesAdded < targetPieces; row++) {
+            for (let col = 0; col < cols2 && piecesAdded < targetPieces; col++) {
               tempLayout.push({
                 x: col * (pieceHeight + kerf),
                 y: row * (pieceWidth + kerf),
@@ -154,15 +160,16 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
                 orientation: 'horizontal',
                 id: tempLayout.length + 1
               });
+              piecesAdded++;
             }
           }
           
-          // Add orientation 1 pieces (vertical)
-          if (remainingHeight >= pieceHeight) {
+          // Add orientation 1 pieces (vertical) - only if we still need more pieces
+          if (piecesAdded < targetPieces && remainingHeight >= pieceHeight) {
             const rows1 = Math.floor((remainingHeight + kerf) / (pieceHeight + kerf));
             const cols1 = Math.floor((slabWidth + kerf) / (pieceWidth + kerf));
-            for (let row = 0; row < rows1; row++) {
-              for (let col = 0; col < cols1; col++) {
+            for (let row = 0; row < rows1 && piecesAdded < targetPieces; row++) {
+              for (let col = 0; col < cols1 && piecesAdded < targetPieces; col++) {
                 tempLayout.push({
                   x: col * (pieceWidth + kerf),
                   y: usedHeight2 + row * (pieceHeight + kerf),
@@ -171,18 +178,26 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
                   orientation: 'vertical',
                   id: tempLayout.length + 1
                 });
+                piecesAdded++;
               }
             }
           }
           
-          if (totalPieces === targetPieces) {
-            bestLayout = tempLayout;
+          // Use this layout if it's better (fits more pieces or fits exactly)
+          if (tempLayout.length >= targetPieces && (tempLayout.length < maxFound || bestLayout.length < targetPieces)) {
+            bestLayout = tempLayout.slice(0, targetPieces);
+            maxFound = tempLayout.length;
           }
         }
       }
       
-      layout.push(...bestLayout.slice(0, targetPieces));
+      layout.push(...bestLayout);
     }
+    
+    console.log(`Generated layout for ${pieceWidth}×${pieceHeight} on ${slabWidth}×${slabHeight}`);
+    console.log(`Target pieces: ${targetPieces}, Generated pieces: ${layout.length}`);
+    console.log(`Max capacity: ${maxPiecesPerSlab}`);
+    console.log('Layout pieces:', layout);
     
     return layout;
   };
