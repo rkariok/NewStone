@@ -1,6 +1,292 @@
 import { useState, useEffect } from 'react';
 
-// Slab Layout Visualization Component
+// Multi-Slab Layout Visualization Component
+const MultiSlabVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSlab, includeKerf, kerfWidth }) => {
+  if (!pieces || pieces.length === 0) return null;
+
+  const pieceWidth = pieces[0].width;
+  const pieceHeight = pieces[0].depth;
+  
+  // Group pieces into slabs
+  const slabs = [];
+  let remainingPieces = [...pieces];
+  let slabNumber = 1;
+  
+  while (remainingPieces.length > 0) {
+    const piecesForThisSlab = remainingPieces.splice(0, Math.min(maxPiecesPerSlab, remainingPieces.length));
+    const slabLayout = generateSlabLayout(piecesForThisSlab, slabWidth, slabHeight, maxPiecesPerSlab, includeKerf, kerfWidth);
+    slabs.push({
+      number: slabNumber++,
+      pieces: piecesForThisSlab,
+      layout: slabLayout,
+      utilization: (piecesForThisSlab.length / maxPiecesPerSlab * 100).toFixed(1)
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h4 className="text-lg font-semibold mb-2">Multi-Slab Layout Plan</h4>
+        <p className="text-sm text-gray-600">
+          {pieces.length} pieces across {slabs.length} slab{slabs.length > 1 ? 's' : ''}
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {slabs.map((slab) => (
+          <div key={slab.number} className="border rounded-lg p-4 bg-white">
+            <div className="flex justify-between items-center mb-3">
+              <h5 className="font-semibold text-gray-800">
+                Slab #{slab.number}
+              </h5>
+              <div className="text-sm space-y-1">
+                <div>Pieces: {slab.pieces.length}/{maxPiecesPerSlab}</div>
+                <div className="text-xs text-gray-600">
+                  Utilization: {slab.utilization}%
+                </div>
+              </div>
+            </div>
+            
+            <SlabLayoutVisualization 
+              pieces={slab.pieces}
+              slabWidth={slabWidth}
+              slabHeight={slabHeight}
+              maxPiecesPerSlab={maxPiecesPerSlab}
+              includeKerf={includeKerf}
+              kerfWidth={kerfWidth}
+            />
+            
+            {/* Piece List for this slab */}
+            <div className="mt-3 text-xs">
+              <strong>Pieces on this slab:</strong>
+              <div className="grid grid-cols-2 gap-1 mt-1">
+                {slab.pieces.map((piece, idx) => (
+                  <div key={idx} className="text-gray-600">
+                    #{piece.id}: {pieceWidth}×{pieceHeight}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {/* Summary Statistics */}
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h5 className="font-semibold mb-2">Layout Summary</h5>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <div className="font-medium">Total Slabs</div>
+            <div className="text-lg font-bold text-blue-600">{slabs.length}</div>
+          </div>
+          <div>
+            <div className="font-medium">Total Pieces</div>
+            <div className="text-lg font-bold text-green-600">{pieces.length}</div>
+          </div>
+          <div>
+            <div className="font-medium">Avg Utilization</div>
+            <div className="text-lg font-bold text-purple-600">
+              {(slabs.reduce((sum, s) => sum + parseFloat(s.utilization), 0) / slabs.length).toFixed(1)}%
+            </div>
+          </div>
+          <div>
+            <div className="font-medium">Waste Factor</div>
+            <div className="text-lg font-bold text-orange-600">
+              {((slabs.length * maxPiecesPerSlab - pieces.length) / (slabs.length * maxPiecesPerSlab) * 100).toFixed(1)}%
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Helper function to generate layout for a single slab
+const generateSlabLayout = (pieces, slabWidth, slabHeight, maxPiecesPerSlab, includeKerf, kerfWidth) => {
+  // Use the same logic as SlabLayoutVisualization but return layout data
+  const pieceWidth = pieces[0].width;
+  const pieceHeight = pieces[0].depth;
+  const kerf = includeKerf ? kerfWidth : 0;
+  
+  // This would use the same algorithm as in SlabLayoutVisualization
+  // For now, return a simple layout - this can be enhanced
+  return pieces.map((piece, index) => ({
+    ...piece,
+    position: index + 1,
+    slabPosition: { x: 0, y: 0 } // Simplified for now
+  }));
+};
+
+// Layout Export Component
+const LayoutExportControls = ({ allResults, products, stoneOptions, includeKerf, kerfWidth }) => {
+  const [exportFormat, setExportFormat] = useState('image');
+  const [includeDetails, setIncludeDetails] = useState(true);
+  
+  const exportLayoutAsImage = () => {
+    // Create a new window/canvas for export
+    const exportWindow = window.open('', '_blank', 'width=1200,height=800');
+    if (!exportWindow) {
+      alert('Please allow popups for layout export');
+      return;
+    }
+    
+    exportWindow.document.write(`
+      <html>
+        <head>
+          <title>Stone Layout Export - ${new Date().toLocaleDateString()}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .slab-container { margin-bottom: 40px; page-break-inside: avoid; }
+            .slab-visual { border: 2px solid #333; margin: 20px 0; position: relative; background: #f5f5f5; }
+            .piece { position: absolute; border: 2px solid; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; }
+            .piece.vertical { background: #e3f2fd; border-color: #1976d2; color: #1976d2; }
+            .piece.horizontal { background: #fff3e0; border-color: #f57c00; color: #f57c00; }
+            .summary { background: #f9f9f9; padding: 15px; border-radius: 5px; }
+            @media print { .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Stone Layout Plan</h1>
+            <p>Generated: ${new Date().toLocaleString()}</p>
+            <p>Mode: ${includeKerf ? `Production (${kerfWidth}" kerf)` : 'Theoretical (no kerf)'}</p>
+          </div>
+        </body>
+      </html>
+    `);
+    
+    // Add layout content for each product
+    allResults.forEach((product, productIndex) => {
+      if (!product.result) return;
+      
+      const stone = stoneOptions.find(s => s["Stone Type"] === product.stone);
+      const slabWidth = parseFloat(stone?.["Slab Width"] || 126);
+      const slabHeight = parseFloat(stone?.["Slab Height"] || 63);
+      
+      exportWindow.document.body.innerHTML += `
+        <div class="slab-container">
+          <h2>Product ${productIndex + 1}: ${product.stone} (${product.width}×${product.depth})</h2>
+          <div class="summary">
+            <strong>Quantity:</strong> ${product.quantity} pieces | 
+            <strong>Slabs Needed:</strong> ${product.result.totalSlabsNeeded} | 
+            <strong>Efficiency:</strong> ${product.result.efficiency.toFixed(1)}%
+          </div>
+        </div>
+      `;
+    });
+    
+    exportWindow.document.body.innerHTML += `
+      <div class="no-print" style="margin-top: 30px; text-align: center;">
+        <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">Print Layout</button>
+        <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">Close</button>
+      </div>
+    `;
+    
+    exportWindow.document.close();
+  };
+  
+  const generateCutList = () => {
+    let cutListContent = `STONE CUT LIST - ${new Date().toLocaleDateString()}\n`;
+    cutListContent += `Mode: ${includeKerf ? `Production (${kerfWidth}" kerf)` : 'Theoretical (no kerf)'}\n`;
+    cutListContent += `=`.repeat(60) + '\n\n';
+    
+    allResults.forEach((product, productIndex) => {
+      if (!product.result) return;
+      
+      cutListContent += `PRODUCT ${productIndex + 1}: ${product.stone}\n`;
+      cutListContent += `Size: ${product.width}" × ${product.depth}"\n`;
+      cutListContent += `Quantity: ${product.quantity} pieces\n`;
+      cutListContent += `Slabs Required: ${product.result.totalSlabsNeeded}\n`;
+      cutListContent += `Pieces per Slab: ${product.result.topsPerSlab}\n`;
+      cutListContent += `Efficiency: ${product.result.efficiency.toFixed(1)}%\n`;
+      
+      // Generate piece list
+      for (let i = 1; i <= product.quantity; i++) {
+        const slabNumber = Math.ceil(i / product.result.topsPerSlab);
+        const pieceOnSlab = ((i - 1) % product.result.topsPerSlab) + 1;
+        cutListContent += `  Piece ${i}: Slab ${slabNumber}, Position ${pieceOnSlab}\n`;
+      }
+      
+      cutListContent += '\n' + '-'.repeat(40) + '\n\n';
+    });
+    
+    // Create downloadable file
+    const blob = new Blob([cutListContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stone_cut_list_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  
+  const shareLayoutURL = () => {
+    // Create a shareable URL with layout data
+    const layoutData = {
+      products: products.filter(p => p.result),
+      settings: { includeKerf, kerfWidth },
+      timestamp: new Date().toISOString()
+    };
+    
+    // In a real app, this would be stored in a database and return a short URL
+    const encodedData = btoa(JSON.stringify(layoutData));
+    const shareURL = `${window.location.origin}${window.location.pathname}?layout=${encodedData}`;
+    
+    navigator.clipboard.writeText(shareURL).then(() => {
+      alert('Layout URL copied to clipboard! Share this with your fabricator.');
+    }).catch(() => {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = shareURL;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Layout URL copied to clipboard! Share this with your fabricator.');
+    });
+  };
+  
+  if (!allResults || allResults.length === 0) return null;
+  
+  return (
+    <div className="bg-blue-50 p-4 rounded-lg space-y-4">
+      <h4 className="font-semibold text-blue-800">Export & Share Layout</h4>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button
+          onClick={exportLayoutAsImage}
+          className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          <span>📊</span>
+          <span>Export Visual Layout</span>
+        </button>
+        
+        <button
+          onClick={generateCutList}
+          className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 text-white rounded hover:bg-green-700"
+        >
+          <span>📋</span>
+          <span>Download Cut List</span>
+        </button>
+        
+        <button
+          onClick={shareLayoutURL}
+          className="flex items-center justify-center space-x-2 px-4 py-3 bg-purple-600 text-white rounded hover:bg-purple-700"
+        >
+          <span>🔗</span>
+          <span>Share Layout URL</span>
+        </button>
+      </div>
+      
+      <div className="text-xs text-gray-600">
+        <strong>Export Options:</strong> Visual layouts can be printed or saved as PDF. Cut lists include piece positioning. Share URLs allow fabricators to view your exact layout.
+      </div>
+    </div>
+  );
+};
 const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSlab, includeKerf, kerfWidth }) => {
   if (!pieces || pieces.length === 0) return null;
 
@@ -308,9 +594,10 @@ const StoneTopEstimator = () => {
 
   const [userInfo, setUserInfo] = useState({ name: "", email: "", phone: "" });
   const [products, setProducts] = useState([
-    { stone: '', width: '', depth: '', quantity: 1, edgeDetail: 'Eased', result: null, id: Date.now() }
+    { stone: '', width: '', depth: '', quantity: 1, edgeDetail: 'Eased', result: null, id: Date.now(), customName: '', priority: 'normal' }
   ]);
   const [allResults, setAllResults] = useState([]);
+  const [showAdvancedPieceManagement, setShowAdvancedPieceManagement] = useState(false);
 
   useEffect(() => {
     // Load html2pdf from CDN
@@ -568,7 +855,7 @@ const StoneTopEstimator = () => {
   const addProduct = () => {
     setProducts([
       ...products,
-      { stone: stoneOptions[0]?.["Stone Type"] || '', width: '', depth: '', quantity: 1, edgeDetail: 'Eased', result: null, id: Date.now() }
+      { stone: stoneOptions[0]?.["Stone Type"] || '', width: '', depth: '', quantity: 1, edgeDetail: 'Eased', result: null, id: Date.now(), customName: '', priority: 'normal' }
     ]);
   };
 
@@ -951,22 +1238,182 @@ const StoneTopEstimator = () => {
         {products.map((product, index) => (
           <div key={product.id} className="bg-gray-50 p-4 rounded shadow space-y-4 text-left relative">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-gray-700">Product {index + 1}</h3>
-              {products.length > 1 && (
+              <div className="flex items-center space-x-3">
+                <h3 className="font-semibold text-gray-700">
+                  {product.customName || `Product ${index + 1}`}
+                </h3>
+                {product.priority === 'high' && (
+                  <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">High Priority</span>
+                )}
+                {product.priority === 'low' && (
+                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Low Priority</span>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-2">
                 <button
-                  type="button"
-                  onClick={() => removeProduct(index)}
-                  className="text-red-600 font-bold text-xl hover:text-red-800"
+                  onClick={() => setShowAdvancedPieceManagement(!showAdvancedPieceManagement)}
+                  className="text-blue-600 hover:text-blue-800 text-sm"
+                  title="Advanced Options"
                 >
-                  ×
+                  ⚙️
                 </button>
-              )}
+                {products.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeProduct(index)}
+                    className="text-red-600 font-bold text-xl hover:text-red-800"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </div>
+            
+            {/* Advanced Piece Management */}
+            {showAdvancedPieceManagement && (
+              <div className="bg-blue-50 p-3 rounded border space-y-3">
+                <h4 className="font-medium text-blue-800">Advanced Piece Settings</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Custom Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Kitchen Island, Master Bath"
+                      value={product.customName || ""}
+                      onChange={(e) => updateProduct(index, 'customName', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Priority</label>
+                    <select
+                      value={product.priority || 'normal'}
+                      onChange={(e) => updateProduct(index, 'priority', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    >
+                      <option value="high">High Priority</option>
+                      <option value="normal">Normal</option>
+                      <option value="low">Low Priority</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Project Phase</label>
+                    <select
+                      value={product.projectPhase || 'design'}
+                      onChange={(e) => updateProduct(index, 'projectPhase', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    >
+                      <option value="design">Design Phase</option>
+                      <option value="approved">Approved</option>
+                      <option value="production">In Production</option>
+                      <option value="complete">Complete</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Installation Date</label>
+                    <input
+                      type="date"
+                      value={product.installDate || ""}
+                      onChange={(e) => updateProduct(index, 'installDate', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Special Requirements</label>
+                    <select
+                      value={product.specialReq || 'none'}
+                      onChange={(e) => updateProduct(index, 'specialReq', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    >
+                      <option value="none">None</option>
+                      <option value="book-match">Book Match Required</option>
+                      <option value="quarter-match">Quarter Match</option>
+                      <option value="vein-direction">Specific Vein Direction</option>
+                      <option value="defect-free">Defect-Free Zone</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="grid grid-cols-3 gap-4">
               <select
                 value={product.stone}
                 onChange={(e) => updateProduct(index, 'stone', e.target.value)}
+                className="border px-4 py-2 rounded"
+              >
+                <option value="">Select Stone Type...</option>
+                {stoneOptions.map((stone, i) => (
+                  <option key={i} value={stone["Stone Type"]}>{stone["Stone Type"]}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                placeholder="Width (in)"
+                value={product.width}
+                onChange={(e) => updateProduct(index, 'width', e.target.value)}
+                className="border px-4 py-2 rounded"
+              />
+              <input
+                type="number"
+                placeholder="Depth (in)"
+                value={product.depth}
+                onChange={(e) => updateProduct(index, 'depth', e.target.value)}
+                className="border px-4 py-2 rounded"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <input
+                type="number"
+                placeholder="Quantity"
+                value={product.quantity}
+                onChange={(e) => updateProduct(index, 'quantity', e.target.value)}
+                className="border px-4 py-2 rounded"
+              />
+              <select
+                value={product.edgeDetail}
+                onChange={(e) => updateProduct(index, 'edgeDetail', e.target.value)}
+                className="border px-4 py-2 rounded"
+              >
+                <option value="Eased">Eased</option>
+                <option value="1.5 mitered">1.5" mitered</option>
+                <option value="Bullnose">Bullnose</option>
+                <option value="Ogee">Ogee</option>
+                <option value="Beveled">Beveled</option>
+              </select>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleDrawingUpload(e, index)}
+                className="border px-4 py-2 rounded"
+                disabled={loadingAI}
+              />
+            </div>
+
+            {loadingAI && (
+              <div className="text-blue-600 font-medium">
+                🤖 AI is extracting dimensions from your drawing...
+              </div>
+            )}
+
+            <textarea
+              placeholder="Notes (optional)"
+              value={product.note || ""}
+              onChange={(e) => updateProduct(index, 'note', e.target.value)}
+              className="w-full border p-2 rounded mt-2"
+              rows={2}
+            />
+          </div>
+        ))}index, 'stone', e.target.value)}
                 className="border px-4 py-2 rounded"
               >
                 <option value="">Select Stone Type...</option>
@@ -1043,6 +1490,13 @@ const StoneTopEstimator = () => {
           </button>
           
           <button
+            onClick={() => setShowAdvancedPieceManagement(!showAdvancedPieceManagement)}
+            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+          >
+            {showAdvancedPieceManagement ? 'Hide' : 'Show'} Advanced Options
+          </button>
+          
+          <button
             onClick={calculateAll}
             className="px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700 font-semibold"
           >
@@ -1058,6 +1512,90 @@ const StoneTopEstimator = () => {
             </button>
           )}
         </div>
+
+        {/* Project Summary for Advanced Management */}
+        {showAdvancedPieceManagement && products.some(p => p.customName || p.priority !== 'normal') && (
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-3">Project Overview</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Priority Breakdown */}
+              <div className="bg-white p-3 rounded border">
+                <h4 className="font-medium text-gray-800 mb-2">Priority Distribution</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>High Priority:</span>
+                    <span className="font-semibold text-red-600">
+                      {products.filter(p => p.priority === 'high').length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Normal:</span>
+                    <span className="font-semibold">
+                      {products.filter(p => p.priority === 'normal' || !p.priority).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Low Priority:</span>
+                    <span className="font-semibold text-gray-500">
+                      {products.filter(p => p.priority === 'low').length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Phases */}
+              <div className="bg-white p-3 rounded border">
+                <h4 className="font-medium text-gray-800 mb-2">Project Phases</h4>
+                <div className="space-y-1 text-sm">
+                  {['design', 'approved', 'production', 'complete'].map(phase => (
+                    <div key={phase} className="flex justify-between">
+                      <span className="capitalize">{phase}:</span>
+                      <span className="font-semibold">
+                        {products.filter(p => p.projectPhase === phase).length}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Special Requirements */}
+              <div className="bg-white p-3 rounded border">
+                <h4 className="font-medium text-gray-800 mb-2">Special Requirements</h4>
+                <div className="space-y-1 text-sm">
+                  {products.filter(p => p.specialReq && p.specialReq !== 'none').map((product, idx) => (
+                    <div key={idx} className="text-orange-600">
+                      {product.customName || `Product ${products.indexOf(product) + 1}`}: {product.specialReq?.replace('-', ' ')}
+                    </div>
+                  ))}
+                  {!products.some(p => p.specialReq && p.specialReq !== 'none') && (
+                    <div className="text-gray-500">No special requirements</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline View */}
+            {products.some(p => p.installDate) && (
+              <div className="mt-4 bg-white p-3 rounded border">
+                <h4 className="font-medium text-gray-800 mb-2">Installation Timeline</h4>
+                <div className="space-y-2">
+                  {products
+                    .filter(p => p.installDate)
+                    .sort((a, b) => new Date(a.installDate) - new Date(b.installDate))
+                    .map((product, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm">
+                        <span>{product.customName || `Product ${products.indexOf(product) + 1}`}</span>
+                        <span className="font-semibold text-blue-600">
+                          {new Date(product.installDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Mixed Stone Types Summary */}
         {allResults.length > 0 && (
@@ -1126,75 +1664,78 @@ const StoneTopEstimator = () => {
                   Layout Preview: {products[0].stone} ({products[0].width}x{products[0].depth})
                 </h4>
                 
-                <div className="flex flex-col lg:flex-row gap-6">
-                  {/* Visual Layout */}
-                  <div className="flex-1">
-                    <SlabLayoutVisualization 
-                      pieces={Array(parseInt(products[0].quantity)).fill().map((_, i) => ({
-                        id: i + 1,
-                        width: parseFloat(products[0].width),
-                        depth: parseFloat(products[0].depth),
-                        name: `${products[0].stone} #${i + 1}`
-                      }))}
-                      slabWidth={parseFloat(stoneOptions.find(s => s["Stone Type"] === products[0].stone)?.["Slab Width"] || 126)}
-                      slabHeight={parseFloat(stoneOptions.find(s => s["Stone Type"] === products[0].stone)?.["Slab Height"] || 63)}
-                      maxPiecesPerSlab={products[0].result.topsPerSlab}
-                      includeKerf={includeKerf}
-                      kerfWidth={kerfWidth}
-                    />
-                  </div>
-                  
-                  {/* Layout Analysis */}
-                  <div className="w-full lg:w-64 bg-gray-50 p-4 rounded">
-                    <h5 className="font-semibold mb-3">Layout Analysis</h5>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 bg-blue-200 border-2 border-blue-600"></div>
-                        <span>Vertical: {products[0].width}x{products[0].depth}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 bg-orange-200 border-2 border-orange-600"></div>
-                        <span>Horizontal: {products[0].depth}x{products[0].width}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 bg-red-200 border border-red-400"></div>
-                        <span>Kerf: {kerfWidth}"</span>
-                      </div>
-                      
-                      <div className="pt-2 border-t space-y-1">
-                        <div><strong>Max Pieces/Slab:</strong> {products[0].result.topsPerSlab}</div>
-                        <div><strong>Efficiency:</strong> <span className="text-green-600 font-semibold">{products[0].result.efficiency.toFixed(1)}%</span></div>
-                        <div><strong>Slabs Needed:</strong> {products[0].result.totalSlabsNeeded}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                {/* Multi-Slab Visualization */}
+                <MultiSlabVisualization 
+                  pieces={Array(parseInt(products[0].quantity)).fill().map((_, i) => ({
+                    id: i + 1,
+                    width: parseFloat(products[0].width),
+                    depth: parseFloat(products[0].depth),
+                    name: `${products[0].stone} #${i + 1}`
+                  }))}
+                  slabWidth={parseFloat(stoneOptions.find(s => s["Stone Type"] === products[0].stone)?.["Slab Width"] || 126)}
+                  slabHeight={parseFloat(stoneOptions.find(s => s["Stone Type"] === products[0].stone)?.["Slab Height"] || 63)}
+                  maxPiecesPerSlab={products[0].result.topsPerSlab}
+                  includeKerf={includeKerf}
+                  kerfWidth={kerfWidth}
+                />
               </div>
             )}
+
+            {/* Export Controls */}
+            <LayoutExportControls 
+              allResults={allResults}
+              products={products}
+              stoneOptions={stoneOptions}
+              includeKerf={includeKerf}
+              kerfWidth={kerfWidth}
+            />
 
             <table className="min-w-full border-collapse border text-sm">
               <thead>
                 <tr className="bg-gray-200">
+                  <th className="border px-4 py-2">Product Name</th>
                   <th className="border px-4 py-2">Stone</th>
                   <th className="border px-4 py-2">Size</th>
                   <th className="border px-4 py-2">Qty</th>
+                  <th className="border px-4 py-2">Priority</th>
                   <th className="border px-4 py-2">Edge</th>
                   <th className="border px-4 py-2">Area (sqft)</th>
                   <th className="border px-4 py-2">Tops/Slab</th>
                   <th className="border px-4 py-2">Slabs Needed</th>
                   <th className="border px-4 py-2">Efficiency</th>
-                  <th className="border px-4 py-2">Material $</th>
-                  <th className="border px-4 py-2">Fab $</th>
-                  <th className="border px-4 py-2">Raw $</th>
                   <th className="border px-4 py-2">Final $</th>
                 </tr>
               </thead>
               <tbody>
                 {allResults.map((p, i) => (
                   <tr key={i} className="text-center">
+                    <td className="border px-4 py-2 text-left">
+                      <div className="font-medium">
+                        {p.customName || `Product ${i + 1}`}
+                      </div>
+                      {p.specialReq && p.specialReq !== 'none' && (
+                        <div className="text-xs text-orange-600">
+                          {p.specialReq.replace('-', ' ')}
+                        </div>
+                      )}
+                      {p.installDate && (
+                        <div className="text-xs text-blue-600">
+                          Install: {new Date(p.installDate).toLocaleDateString()}
+                        </div>
+                      )}
+                    </td>
                     <td className="border px-4 py-2">{p.stone}</td>
                     <td className="border px-4 py-2">{p.width}×{p.depth}</td>
                     <td className="border px-4 py-2">{p.quantity}</td>
+                    <td className="border px-4 py-2">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        p.priority === 'high' ? 'bg-red-100 text-red-800' :
+                        p.priority === 'low' ? 'bg-gray-100 text-gray-600' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {p.priority === 'high' ? 'High' : p.priority === 'low' ? 'Low' : 'Normal'}
+                      </span>
+                    </td>
                     <td className="border px-4 py-2">{p.edgeDetail}</td>
                     <td className="border px-4 py-2">{p.result?.usableAreaSqft.toFixed(2)}</td>
                     <td className="border px-4 py-2 font-semibold text-purple-600">
@@ -1208,9 +1749,6 @@ const StoneTopEstimator = () => {
                         {p.result?.efficiency.toFixed(1)}%
                       </span>
                     </td>
-                    <td className="border px-4 py-2">${p.result?.materialCost.toFixed(2)}</td>
-                    <td className="border px-4 py-2">${p.result?.fabricationCost.toFixed(2)}</td>
-                    <td className="border px-4 py-2">${p.result?.rawCost.toFixed(2)}</td>
                     <td className="border px-4 py-2 font-semibold text-green-600">
                       ${p.result?.finalPrice.toFixed(2)}
                     </td>
@@ -1219,7 +1757,7 @@ const StoneTopEstimator = () => {
               </tbody>
               <tfoot>
                 <tr className="bg-gray-100 font-bold">
-                  <td colSpan="11" className="border px-4 py-2 text-right">Total:</td>
+                  <td colSpan="10" className="border px-4 py-2 text-right">Total:</td>
                   <td className="border px-4 py-2 text-center">
                     ${allResults.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0).toFixed(2)}
                   </td>
