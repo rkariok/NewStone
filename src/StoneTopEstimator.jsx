@@ -1,4 +1,321 @@
-import { useState, useEffect } from 'react';
+return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-6xl space-y-6 text-center">
+        
+        <div className="text-center mb-4">
+          <div className="w-32 h-32 mx-auto mb-2 bg-gray-200 rounded flex items-center justify-center">
+            <span className="text-4xl font-bold text-gray-600">AIC</span>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800">Stone Estimator with Slab Optimization</h1>
+          <p className="text-base font-medium text-gray-700">Developed by Roy Kariok</p>
+        </div>
+
+        {!adminMode && (
+          <div className="mb-4">
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              placeholder="Admin Password"
+              className="border px-4 py-2 rounded"
+            />
+            <button
+              onClick={() => setAdminMode(adminPassword === correctPassword)}
+              className="ml-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Enter Admin Mode
+            </button>
+          </div>
+        )}
+
+        {/* Advanced Settings Panel */}
+        <div className="bg-blue-50 p-4 rounded shadow-md space-y-4 text-left">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-blue-800">Optimization Settings</h2>
+            <button
+              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              {showAdvancedSettings ? '▼ Hide Advanced' : '▶ Show Advanced'}
+            </button>
+          </div>
+          
+          {/* Basic Settings - Always Visible */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="includeKerf"
+                checked={includeKerf}
+                onChange={(e) => setIncludeKerf(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <label htmlFor="includeKerf" className="font-medium">
+                Include Kerf (Saw Blade Width)
+              </label>
+              {includeKerf && (
+                <span className="text-sm text-gray-600">({kerfWidth}")</span>
+              )}
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              <strong>Current Mode:</strong> {includeKerf ? 'Production (with kerf)' : 'Theoretical (no kerf)'}
+            </div>
+          </div>
+
+          {/* Advanced Settings - Collapsible */}
+          {showAdvancedSettings && (
+            <div className="border-t pt-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Kerf Width (inches)</label>
+                  <select
+                    value={kerfWidth}
+                    onChange={(e) => setKerfWidth(parseFloat(e.target.value))}
+                    className="border px-3 py-2 rounded w-full text-sm"
+                    disabled={!includeKerf}
+                  >
+                    <option value={0.125}>1/8" (0.125) - Standard</option>
+                    <option value={0.1875}>3/16" (0.1875) - Thick Material</option>
+                    <option value={0.25}>1/4" (0.25) - Heavy Duty</option>
+                    <option value={0.09375}>3/32" (0.094) - Thin Blade</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Breakage Buffer (%)</label>
+                  <select
+                    value={breakageBuffer}
+                    onChange={(e) => setBreakageBuffer(parseInt(e.target.value))}
+                    className="border px-3 py-2 rounded w-full text-sm"
+                  >
+                    <option value={5}>5% - Conservative</option>
+                    <option value={10}>10% - Standard</option>
+                    <option value={15}>15% - High Risk</option>
+                    <option value={20}>20% - Very High Risk</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Quick Presets</label>
+                  <select
+                    onChange={(e) => {
+                      const preset = e.target.value;
+                      if (preset === 'production') {
+                        setIncludeKerf(true);
+                        setKerfWidth(0.125);
+                        setBreakageBuffer(10);
+                      } else if (preset === 'theoretical') {
+                        setIncludeKerf(false);
+                        setBreakageBuffer(5);
+                      } else if (preset === 'conservative') {
+                        setIncludeKerf(true);
+                        setKerfWidth(0.1875);
+                        setBreakageBuffer(15);
+                      }
+                    }}
+                    className="border px-3 py-2 rounded w-full text-sm"
+                  >
+                    <option value="">Select Preset...</option>
+                    <option value="theoretical">Theoretical Maximum</option>
+                    <option value="production">Production Standard</option>
+                    <option value="conservative">Conservative Estimate</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="bg-gray-100 p-3 rounded text-sm">
+                <strong>Settings Help:</strong>
+                <ul className="list-disc list-inside mt-1 space-y-1">
+                  <li><strong>Kerf:</strong> Accounts for material lost to saw blade width</li>
+                  <li><strong>Breakage Buffer:</strong> Extra material for handling/installation damage</li>
+                  <li><strong>Production Mode:</strong> Most realistic for actual fabrication</li>
+                  <li><strong>Theoretical Mode:</strong> Maximum possible pieces (no cutting waste)</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {products.map((product, index) => (
+          <div key={product.id} className="bg-gray-50 p-4 rounded shadow space-y-4 text-left relative">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-3">
+                <h3 className="font-semibold text-gray-700">
+                  {product.customName || `Product ${index + 1}`}
+                </h3>
+                {product.priority === 'high' && (
+                  <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">High Priority</span>
+                )}
+                {product.priority === 'low' && (
+                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Low Priority</span>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowAdvancedPieceManagement(!showAdvancedPieceManagement)}
+                  className="text-blue-600 hover:text-blue-800 text-sm"
+                  title="Advanced Options"
+                >
+                  ⚙️
+                </button>
+                {products.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeProduct(index)}
+                    className="text-red-600 font-bold text-xl hover:text-red-800"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {/* Advanced Piece Management */}
+            {showAdvancedPieceManagement && (
+              <div className="bg-blue-50 p-3 rounded border space-y-3">
+                <h4 className="font-medium text-blue-800">Advanced Piece Settings</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Custom Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Kitchen Island, Master Bath"
+                      value={product.customName || ""}
+                      onChange={(e) => updateProduct(index, 'customName', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Priority</label>
+                    <select
+                      value={product.priority || 'normal'}
+                      onChange={(e) => updateProduct(index, 'priority', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    >
+                      <option value="high">High Priority</option>
+                      <option value="normal">Normal</option>
+                      <option value="low">Low Priority</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Project Phase</label>
+                    <select
+                      value={product.projectPhase || 'design'}
+                      onChange={(e) => updateProduct(index, 'projectPhase', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    >
+                      <option value="design">Design Phase</option>
+                      <option value="approved">Approved</option>
+                      <option value="production">In Production</option>
+                      <option value="complete">Complete</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Installation Date</label>
+                    <input
+                      type="date"
+                      value={product.installDate || ""}
+                      onChange={(e) => updateProduct(index, 'installDate', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Special Requirements</label>
+                    <select
+                      value={product.specialReq || 'none'}
+                      onChange={(e) => updateProduct(index, 'specialReq', e.target.value)}
+                      className="border px-3 py-2 rounded w-full text-sm"
+                    >
+                      <option value="none">None</option>
+                      <option value="book-match">Book Match Required</option>
+                      <option value="quarter-match">Quarter Match</option>
+                      <option value="vein-direction">Specific Vein Direction</option>
+                      <option value="defect-free">Defect-Free Zone</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-3 gap-4">
+              <select
+                value={product.stone}
+                onChange={(e) => updateProduct(index, 'stone', e.target.value)}
+                className="border px-4 py-2 rounded"
+              >
+                <option value="">Select Stone Type...</option>
+                {stoneOptions.map((stone, i) => (
+                  <option key={i} value={stone["Stone Type"]}>{stone["Stone Type"]}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                placeholder="Width (in)"
+                value={product.width}
+                onChange={(e) => updateProduct(index, 'width', e.target.value)}
+                className="border px-4 py-2 rounded"
+              />
+              <input
+                type="number"
+                placeholder="Depth (in)"
+                value={product.depth}
+                onChange={(e) => updateProduct(index, 'depth', e.target.value)}
+                className="border px-4 py-2 rounded"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <input
+                type="number"
+                placeholder="Quantity"
+                value={product.quantity}
+                onChange={(e) => updateProduct(index, 'quantity', e.target.value)}
+                className="border px-4 py-2 rounded"
+              />
+              <select
+                value={product.edgeDetail}
+                onChange={(e) => updateProduct(index, 'edgeDetail', e.target.value)}
+                className="border px-4 py-2 rounded"
+              >
+                <option value="Eased">Eased</option>
+                <option value="1.5 mitered">1.5" mitered</option>
+                <option value="Bullnose">Bullnose</option>
+                <option value="Ogee">Ogee</option>
+                <option value="Beveled">Beveled</option>
+              </select>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleDrawingUpload(e, index)}
+                className="border px-4 py-2 rounded"
+                disabled={loadingAI}
+              />
+            </div>
+
+            {loadingAI && (
+              <div className="text-blue-600 font-medium">
+                🤖 AI is extracting dimensions from your drawing...
+              </div>
+            )}
+
+            <textarea
+              placeholder="Notes (optional)"
+              value={product.note || ""}
+              onChange={(e) => updateProduct(index, 'note', e.target.value)}
+              className="w-full border p-2 rounded mt-2"
+              rows={2}
+            />
+          </div>
+        ))}import { useState, useEffect } from 'react';
 
 // Multi-Slab Layout Visualization Component
 const MultiSlabVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSlab, includeKerf, kerfWidth }) => {
@@ -287,6 +604,7 @@ const LayoutExportControls = ({ allResults, products, stoneOptions, includeKerf,
     </div>
   );
 };
+
 const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSlab, includeKerf, kerfWidth }) => {
   if (!pieces || pieces.length === 0) return null;
 
@@ -1095,743 +1413,3 @@ const StoneTopEstimator = () => {
     
     window.html2pdf().from(element).set(opt).save();
   };
-
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-6xl space-y-6 text-center">
-        
-        <div className="text-center mb-4">
-          <div className="w-32 h-32 mx-auto mb-2 bg-gray-200 rounded flex items-center justify-center">
-            <span className="text-4xl font-bold text-gray-600">AIC</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800">Stone Estimator with Slab Optimization</h1>
-          <p className="text-base font-medium text-gray-700">Developed by Roy Kariok</p>
-        </div>
-
-        {!adminMode && (
-          <div className="mb-4">
-            <input
-              type="password"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              placeholder="Admin Password"
-              className="border px-4 py-2 rounded"
-            />
-            <button
-              onClick={() => setAdminMode(adminPassword === correctPassword)}
-              className="ml-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Enter Admin Mode
-            </button>
-          </div>
-        )}
-
-        {/* Advanced Settings Panel */}
-        <div className="bg-blue-50 p-4 rounded shadow-md space-y-4 text-left">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-blue-800">Optimization Settings</h2>
-            <button
-              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-              className="text-blue-600 hover:text-blue-800 font-medium"
-            >
-              {showAdvancedSettings ? '▼ Hide Advanced' : '▶ Show Advanced'}
-            </button>
-          </div>
-          
-          {/* Basic Settings - Always Visible */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                id="includeKerf"
-                checked={includeKerf}
-                onChange={(e) => setIncludeKerf(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <label htmlFor="includeKerf" className="font-medium">
-                Include Kerf (Saw Blade Width)
-              </label>
-              {includeKerf && (
-                <span className="text-sm text-gray-600">({kerfWidth}")</span>
-              )}
-            </div>
-            
-            <div className="text-sm text-gray-600">
-              <strong>Current Mode:</strong> {includeKerf ? 'Production (with kerf)' : 'Theoretical (no kerf)'}
-            </div>
-          </div>
-
-          {/* Advanced Settings - Collapsible */}
-          {showAdvancedSettings && (
-            <div className="border-t pt-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Kerf Width (inches)</label>
-                  <select
-                    value={kerfWidth}
-                    onChange={(e) => setKerfWidth(parseFloat(e.target.value))}
-                    className="border px-3 py-2 rounded w-full text-sm"
-                    disabled={!includeKerf}
-                  >
-                    <option value={0.125}>1/8" (0.125) - Standard</option>
-                    <option value={0.1875}>3/16" (0.1875) - Thick Material</option>
-                    <option value={0.25}>1/4" (0.25) - Heavy Duty</option>
-                    <option value={0.09375}>3/32" (0.094) - Thin Blade</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Breakage Buffer (%)</label>
-                  <select
-                    value={breakageBuffer}
-                    onChange={(e) => setBreakageBuffer(parseInt(e.target.value))}
-                    className="border px-3 py-2 rounded w-full text-sm"
-                  >
-                    <option value={5}>5% - Conservative</option>
-                    <option value={10}>10% - Standard</option>
-                    <option value={15}>15% - High Risk</option>
-                    <option value={20}>20% - Very High Risk</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Quick Presets</label>
-                  <select
-                    onChange={(e) => {
-                      const preset = e.target.value;
-                      if (preset === 'production') {
-                        setIncludeKerf(true);
-                        setKerfWidth(0.125);
-                        setBreakageBuffer(10);
-                      } else if (preset === 'theoretical') {
-                        setIncludeKerf(false);
-                        setBreakageBuffer(5);
-                      } else if (preset === 'conservative') {
-                        setIncludeKerf(true);
-                        setKerfWidth(0.1875);
-                        setBreakageBuffer(15);
-                      }
-                    }}
-                    className="border px-3 py-2 rounded w-full text-sm"
-                  >
-                    <option value="">Select Preset...</option>
-                    <option value="theoretical">Theoretical Maximum</option>
-                    <option value="production">Production Standard</option>
-                    <option value="conservative">Conservative Estimate</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="bg-gray-100 p-3 rounded text-sm">
-                <strong>Settings Help:</strong>
-                <ul className="list-disc list-inside mt-1 space-y-1">
-                  <li><strong>Kerf:</strong> Accounts for material lost to saw blade width</li>
-                  <li><strong>Breakage Buffer:</strong> Extra material for handling/installation damage</li>
-                  <li><strong>Production Mode:</strong> Most realistic for actual fabrication</li>
-                  <li><strong>Theoretical Mode:</strong> Maximum possible pieces (no cutting waste)</li>
-                </ul>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {products.map((product, index) => (
-          <div key={product.id} className="bg-gray-50 p-4 rounded shadow space-y-4 text-left relative">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-3">
-                <h3 className="font-semibold text-gray-700">
-                  {product.customName || `Product ${index + 1}`}
-                </h3>
-                {product.priority === 'high' && (
-                  <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">High Priority</span>
-                )}
-                {product.priority === 'low' && (
-                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Low Priority</span>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setShowAdvancedPieceManagement(!showAdvancedPieceManagement)}
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                  title="Advanced Options"
-                >
-                  ⚙️
-                </button>
-                {products.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeProduct(index)}
-                    className="text-red-600 font-bold text-xl hover:text-red-800"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {/* Advanced Piece Management */}
-            {showAdvancedPieceManagement && (
-              <div className="bg-blue-50 p-3 rounded border space-y-3">
-                <h4 className="font-medium text-blue-800">Advanced Piece Settings</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Custom Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Kitchen Island, Master Bath"
-                      value={product.customName || ""}
-                      onChange={(e) => updateProduct(index, 'customName', e.target.value)}
-                      className="border px-3 py-2 rounded w-full text-sm"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Priority</label>
-                    <select
-                      value={product.priority || 'normal'}
-                      onChange={(e) => updateProduct(index, 'priority', e.target.value)}
-                      className="border px-3 py-2 rounded w-full text-sm"
-                    >
-                      <option value="high">High Priority</option>
-                      <option value="normal">Normal</option>
-                      <option value="low">Low Priority</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Project Phase</label>
-                    <select
-                      value={product.projectPhase || 'design'}
-                      onChange={(e) => updateProduct(index, 'projectPhase', e.target.value)}
-                      className="border px-3 py-2 rounded w-full text-sm"
-                    >
-                      <option value="design">Design Phase</option>
-                      <option value="approved">Approved</option>
-                      <option value="production">In Production</option>
-                      <option value="complete">Complete</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Installation Date</label>
-                    <input
-                      type="date"
-                      value={product.installDate || ""}
-                      onChange={(e) => updateProduct(index, 'installDate', e.target.value)}
-                      className="border px-3 py-2 rounded w-full text-sm"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Special Requirements</label>
-                    <select
-                      value={product.specialReq || 'none'}
-                      onChange={(e) => updateProduct(index, 'specialReq', e.target.value)}
-                      className="border px-3 py-2 rounded w-full text-sm"
-                    >
-                      <option value="none">None</option>
-                      <option value="book-match">Book Match Required</option>
-                      <option value="quarter-match">Quarter Match</option>
-                      <option value="vein-direction">Specific Vein Direction</option>
-                      <option value="defect-free">Defect-Free Zone</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-3 gap-4">
-              <select
-                value={product.stone}
-                onChange={(e) => updateProduct(index, 'stone', e.target.value)}
-                className="border px-4 py-2 rounded"
-              >
-                <option value="">Select Stone Type...</option>
-                {stoneOptions.map((stone, i) => (
-                  <option key={i} value={stone["Stone Type"]}>{stone["Stone Type"]}</option>
-                ))}
-              </select>
-              <input
-                type="number"
-                placeholder="Width (in)"
-                value={product.width}
-                onChange={(e) => updateProduct(index, 'width', e.target.value)}
-                className="border px-4 py-2 rounded"
-              />
-              <input
-                type="number"
-                placeholder="Depth (in)"
-                value={product.depth}
-                onChange={(e) => updateProduct(index, 'depth', e.target.value)}
-                className="border px-4 py-2 rounded"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <input
-                type="number"
-                placeholder="Quantity"
-                value={product.quantity}
-                onChange={(e) => updateProduct(index, 'quantity', e.target.value)}
-                className="border px-4 py-2 rounded"
-              />
-              <select
-                value={product.edgeDetail}
-                onChange={(e) => updateProduct(index, 'edgeDetail', e.target.value)}
-                className="border px-4 py-2 rounded"
-              >
-                <option value="Eased">Eased</option>
-                <option value="1.5 mitered">1.5" mitered</option>
-                <option value="Bullnose">Bullnose</option>
-                <option value="Ogee">Ogee</option>
-                <option value="Beveled">Beveled</option>
-              </select>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleDrawingUpload(e, index)}
-                className="border px-4 py-2 rounded"
-                disabled={loadingAI}
-              />
-            </div>
-
-            {loadingAI && (
-              <div className="text-blue-600 font-medium">
-                🤖 AI is extracting dimensions from your drawing...
-              </div>
-            )}
-
-            <textarea
-              placeholder="Notes (optional)"
-              value={product.note || ""}
-              onChange={(e) => updateProduct(index, 'note', e.target.value)}
-              className="w-full border p-2 rounded mt-2"
-              rows={2}
-            />
-          </div>
-        ))}index, 'stone', e.target.value)}
-                className="border px-4 py-2 rounded"
-              >
-                <option value="">Select Stone Type...</option>
-                {stoneOptions.map((stone, i) => (
-                  <option key={i} value={stone["Stone Type"]}>{stone["Stone Type"]}</option>
-                ))}
-              </select>
-              <input
-                type="number"
-                placeholder="Width (in)"
-                value={product.width}
-                onChange={(e) => updateProduct(index, 'width', e.target.value)}
-                className="border px-4 py-2 rounded"
-              />
-              <input
-                type="number"
-                placeholder="Depth (in)"
-                value={product.depth}
-                onChange={(e) => updateProduct(index, 'depth', e.target.value)}
-                className="border px-4 py-2 rounded"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <input
-                type="number"
-                placeholder="Quantity"
-                value={product.quantity}
-                onChange={(e) => updateProduct(index, 'quantity', e.target.value)}
-                className="border px-4 py-2 rounded"
-              />
-              <select
-                value={product.edgeDetail}
-                onChange={(e) => updateProduct(index, 'edgeDetail', e.target.value)}
-                className="border px-4 py-2 rounded"
-              >
-                <option value="Eased">Eased</option>
-                <option value="1.5 mitered">1.5" mitered</option>
-                <option value="Bullnose">Bullnose</option>
-                <option value="Ogee">Ogee</option>
-                <option value="Beveled">Beveled</option>
-              </select>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleDrawingUpload(e, index)}
-                className="border px-4 py-2 rounded"
-                disabled={loadingAI}
-              />
-            </div>
-
-            {loadingAI && (
-              <div className="text-blue-600 font-medium">
-                🤖 AI is extracting dimensions from your drawing...
-              </div>
-            )}
-
-            <textarea
-              placeholder="Notes (optional)"
-              value={product.note || ""}
-              onChange={(e) => updateProduct(index, 'note', e.target.value)}
-              className="w-full border p-2 rounded mt-2"
-              rows={2}
-            />
-          </div>
-        ))}
-
-        <div className="flex space-x-4 justify-center">
-          <button
-            onClick={addProduct}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Add Another Product
-          </button>
-          
-          <button
-            onClick={() => setShowAdvancedPieceManagement(!showAdvancedPieceManagement)}
-            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-          >
-            {showAdvancedPieceManagement ? 'Hide' : 'Show'} Advanced Options
-          </button>
-          
-          <button
-            onClick={calculateAll}
-            className="px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700 font-semibold"
-          >
-            Calculate with Optimization
-          </button>
-          
-          {allResults.length > 0 && (
-            <button
-              onClick={generatePDF}
-              className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
-            >
-              Generate PDF Quote
-            </button>
-          )}
-        </div>
-
-        {/* Project Summary for Advanced Management */}
-        {showAdvancedPieceManagement && products.some(p => p.customName || p.priority !== 'normal') && (
-          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold mb-3">Project Overview</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Priority Breakdown */}
-              <div className="bg-white p-3 rounded border">
-                <h4 className="font-medium text-gray-800 mb-2">Priority Distribution</h4>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span>High Priority:</span>
-                    <span className="font-semibold text-red-600">
-                      {products.filter(p => p.priority === 'high').length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Normal:</span>
-                    <span className="font-semibold">
-                      {products.filter(p => p.priority === 'normal' || !p.priority).length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Low Priority:</span>
-                    <span className="font-semibold text-gray-500">
-                      {products.filter(p => p.priority === 'low').length}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Project Phases */}
-              <div className="bg-white p-3 rounded border">
-                <h4 className="font-medium text-gray-800 mb-2">Project Phases</h4>
-                <div className="space-y-1 text-sm">
-                  {['design', 'approved', 'production', 'complete'].map(phase => (
-                    <div key={phase} className="flex justify-between">
-                      <span className="capitalize">{phase}:</span>
-                      <span className="font-semibold">
-                        {products.filter(p => p.projectPhase === phase).length}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Special Requirements */}
-              <div className="bg-white p-3 rounded border">
-                <h4 className="font-medium text-gray-800 mb-2">Special Requirements</h4>
-                <div className="space-y-1 text-sm">
-                  {products.filter(p => p.specialReq && p.specialReq !== 'none').map((product, idx) => (
-                    <div key={idx} className="text-orange-600">
-                      {product.customName || `Product ${products.indexOf(product) + 1}`}: {product.specialReq?.replace('-', ' ')}
-                    </div>
-                  ))}
-                  {!products.some(p => p.specialReq && p.specialReq !== 'none') && (
-                    <div className="text-gray-500">No special requirements</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Timeline View */}
-            {products.some(p => p.installDate) && (
-              <div className="mt-4 bg-white p-3 rounded border">
-                <h4 className="font-medium text-gray-800 mb-2">Installation Timeline</h4>
-                <div className="space-y-2">
-                  {products
-                    .filter(p => p.installDate)
-                    .sort((a, b) => new Date(a.installDate) - new Date(b.installDate))
-                    .map((product, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm">
-                        <span>{product.customName || `Product ${products.indexOf(product) + 1}`}</span>
-                        <span className="font-semibold text-blue-600">
-                          {new Date(product.installDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Mixed Stone Types Summary */}
-        {allResults.length > 0 && (
-          <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold mb-2">Quote Summary</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <strong>Total Products:</strong> {allResults.length}
-              </div>
-              <div>
-                <strong>Stone Types:</strong> {[...new Set(allResults.map(r => r.stone))].length}
-              </div>
-              <div>
-                <strong>Total Pieces:</strong> {allResults.reduce((sum, p) => sum + parseInt(p.quantity || 0), 0)}
-              </div>
-              <div>
-                <strong>Total Quote:</strong> ${allResults.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0).toFixed(2)}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="bg-gray-50 p-4 rounded shadow-md space-y-4 text-left">
-          <h2 className="text-lg font-semibold">Contact Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={userInfo?.name || ""}
-              onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
-              className="border px-4 py-2 rounded w-full"
-              required
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={userInfo?.email || ""}
-              onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
-              className="border px-4 py-2 rounded w-full"
-              required
-            />
-            <input
-              type="tel"
-              placeholder="Phone Number"
-              value={userInfo?.phone || ""}
-              onChange={(e) => setUserInfo({ ...userInfo, phone: e.target.value })}
-              className="border px-4 py-2 rounded w-full"
-              required
-            />
-          </div>
-        </div>
-
-        {allResults.length > 0 && (
-          <div className="mt-6 w-full overflow-x-auto">
-            <h3 className="text-lg font-semibold mb-4">
-              Optimized Results 
-              <span className="text-sm font-normal text-gray-600 ml-2">
-                ({includeKerf ? `Production Mode (${kerfWidth}" kerf)` : 'Theoretical Mode (no kerf)'})
-              </span>
-            </h3>
-
-            {/* Layout Preview for First Product */}
-            {products[0]?.result && (
-              <div className="mb-6 bg-white p-4 rounded border">
-                <h4 className="font-semibold text-gray-800 mb-3">
-                  Layout Preview: {products[0].stone} ({products[0].width}x{products[0].depth})
-                </h4>
-                
-                {/* Multi-Slab Visualization */}
-                <MultiSlabVisualization 
-                  pieces={Array(parseInt(products[0].quantity)).fill().map((_, i) => ({
-                    id: i + 1,
-                    width: parseFloat(products[0].width),
-                    depth: parseFloat(products[0].depth),
-                    name: `${products[0].stone} #${i + 1}`
-                  }))}
-                  slabWidth={parseFloat(stoneOptions.find(s => s["Stone Type"] === products[0].stone)?.["Slab Width"] || 126)}
-                  slabHeight={parseFloat(stoneOptions.find(s => s["Stone Type"] === products[0].stone)?.["Slab Height"] || 63)}
-                  maxPiecesPerSlab={products[0].result.topsPerSlab}
-                  includeKerf={includeKerf}
-                  kerfWidth={kerfWidth}
-                />
-              </div>
-            )}
-
-            {/* Export Controls */}
-            <LayoutExportControls 
-              allResults={allResults}
-              products={products}
-              stoneOptions={stoneOptions}
-              includeKerf={includeKerf}
-              kerfWidth={kerfWidth}
-            />
-
-            <table className="min-w-full border-collapse border text-sm">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="border px-4 py-2">Product Name</th>
-                  <th className="border px-4 py-2">Stone</th>
-                  <th className="border px-4 py-2">Size</th>
-                  <th className="border px-4 py-2">Qty</th>
-                  <th className="border px-4 py-2">Priority</th>
-                  <th className="border px-4 py-2">Edge</th>
-                  <th className="border px-4 py-2">Area (sqft)</th>
-                  <th className="border px-4 py-2">Tops/Slab</th>
-                  <th className="border px-4 py-2">Slabs Needed</th>
-                  <th className="border px-4 py-2">Efficiency</th>
-                  <th className="border px-4 py-2">Final $</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allResults.map((p, i) => (
-                  <tr key={i} className="text-center">
-                    <td className="border px-4 py-2 text-left">
-                      <div className="font-medium">
-                        {p.customName || `Product ${i + 1}`}
-                      </div>
-                      {p.specialReq && p.specialReq !== 'none' && (
-                        <div className="text-xs text-orange-600">
-                          {p.specialReq.replace('-', ' ')}
-                        </div>
-                      )}
-                      {p.installDate && (
-                        <div className="text-xs text-blue-600">
-                          Install: {new Date(p.installDate).toLocaleDateString()}
-                        </div>
-                      )}
-                    </td>
-                    <td className="border px-4 py-2">{p.stone}</td>
-                    <td className="border px-4 py-2">{p.width}×{p.depth}</td>
-                    <td className="border px-4 py-2">{p.quantity}</td>
-                    <td className="border px-4 py-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        p.priority === 'high' ? 'bg-red-100 text-red-800' :
-                        p.priority === 'low' ? 'bg-gray-100 text-gray-600' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {p.priority === 'high' ? 'High' : p.priority === 'low' ? 'Low' : 'Normal'}
-                      </span>
-                    </td>
-                    <td className="border px-4 py-2">{p.edgeDetail}</td>
-                    <td className="border px-4 py-2">{p.result?.usableAreaSqft.toFixed(2)}</td>
-                    <td className="border px-4 py-2 font-semibold text-purple-600">
-                      {p.result?.topsPerSlab}
-                    </td>
-                    <td className="border px-4 py-2 font-semibold text-blue-600">
-                      {p.result?.totalSlabsNeeded}
-                    </td>
-                    <td className="border px-4 py-2">
-                      <span className={`font-semibold ${p.result?.efficiency > 80 ? 'text-green-600' : p.result?.efficiency > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
-                        {p.result?.efficiency.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="border px-4 py-2 font-semibold text-green-600">
-                      ${p.result?.finalPrice.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-gray-100 font-bold">
-                  <td colSpan="10" className="border px-4 py-2 text-right">Total:</td>
-                  <td className="border px-4 py-2 text-center">
-                    ${allResults.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0).toFixed(2)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-blue-50 p-4 rounded">
-                <h4 className="font-semibold text-blue-800">Total Slabs Needed</h4>
-                <p className="text-2xl font-bold text-blue-600">
-                  {allResults.reduce((sum, p) => sum + (p.result?.totalSlabsNeeded || 0), 0)}
-                </p>
-              </div>
-              <div className="bg-green-50 p-4 rounded">
-                <h4 className="font-semibold text-green-800">Average Efficiency</h4>
-                <p className="text-2xl font-bold text-green-600">
-                  {(allResults.reduce((sum, p) => sum + (p.result?.efficiency || 0), 0) / allResults.length).toFixed(1)}%
-                </p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded">
-                <h4 className="font-semibold text-purple-800">Material Savings</h4>
-                <p className="text-sm text-purple-600">vs. Standard Calculation</p>
-                <p className="text-xl font-bold text-purple-600">Optimized!</p>
-              </div>
-            </div>
-
-            {/* Stone Type Breakdown */}
-            {[...new Set(allResults.map(r => r.stone))].length > 1 && (
-              <div className="mt-6 bg-yellow-50 p-4 rounded">
-                <h4 className="font-semibold text-yellow-800 mb-3">Multi-Stone Type Summary</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[...new Set(allResults.map(r => r.stone))].map(stoneType => {
-                    const stoneProducts = allResults.filter(r => r.stone === stoneType);
-                    const stoneTotal = stoneProducts.reduce((sum, p) => sum + (p.result?.finalPrice || 0), 0);
-                    const stoneSlabs = stoneProducts.reduce((sum, p) => sum + (p.result?.totalSlabsNeeded || 0), 0);
-                    
-                    return (
-                      <div key={stoneType} className="bg-white p-3 rounded border">
-                        <h5 className="font-semibold text-gray-800">{stoneType}</h5>
-                        <div className="text-sm space-y-1">
-                          <div>Products: {stoneProducts.length}</div>
-                          <div>Slabs Needed: {stoneSlabs}</div>
-                          <div>Subtotal: ${stoneTotal.toFixed(2)}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {allResults.some(p => p.result?.optimization) && (
-              <div className="mt-6 bg-gray-50 p-4 rounded">
-                <h4 className="font-semibold text-gray-800 mb-2">Optimization Summary</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p><strong>Mode:</strong> {includeKerf ? 'Production (with kerf)' : 'Theoretical (no kerf)'}</p>
-                    <p><strong>Kerf Width:</strong> {includeKerf ? `${kerfWidth}"` : 'N/A'}</p>
-                    <p><strong>Breakage Buffer:</strong> {breakageBuffer}%</p>
-                  </div>
-                  <div>
-                    <p><strong>Algorithm:</strong> Mixed orientation optimization</p>
-                    <p><strong>Efficiency Method:</strong> Maximum pieces per slab</p>
-                    <p><strong>Waste Minimization:</strong> Advanced layout planning</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default StoneTopEstimator;
