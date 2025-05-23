@@ -486,6 +486,7 @@ const StoneTopEstimator = () => {
   ]);
   const [allResults, setAllResults] = useState([]);
   const [showAdvancedPieceManagement, setShowAdvancedPieceManagement] = useState(false);
+  const [showVisualLayouts, setShowVisualLayouts] = useState(true);
 
   useEffect(() => {
     // Fetch stone data
@@ -1030,33 +1031,147 @@ const StoneTopEstimator = () => {
         {/* Results Section */}
         {allResults.length > 0 && (
           <div className="mt-6 w-full overflow-x-auto">
-            <h3 className="text-lg font-semibold mb-4">
-              Optimized Results 
-              <span className="text-sm font-normal text-gray-600 ml-2">
-                ({includeKerf ? `Production Mode (${kerfWidth}" kerf)` : 'Theoretical Mode (no kerf)'})
-              </span>
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Optimized Results 
+                <span className="text-sm font-normal text-gray-600 ml-2">
+                  ({includeKerf ? `Production Mode (${kerfWidth}" kerf)` : 'Theoretical Mode (no kerf)'})
+                </span>
+              </h3>
+              
+              {/* Visual Layout Toggle */}
+              <div className="flex items-center space-x-3">
+                <label className="flex items-center space-x-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={showVisualLayouts}
+                    onChange={(e) => setShowVisualLayouts(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span>Show Visual Layouts</span>
+                </label>
+              </div>
+            </div>
 
-            {/* Layout Preview for First Product */}
-            {products[0]?.result && (
-              <div className="mb-6 bg-white p-4 rounded border">
-                <h4 className="font-semibold text-gray-800 mb-3">
-                  Layout Preview: {products[0].stone} ({products[0].width}x{products[0].depth})
-                </h4>
-                
-                <MultiSlabVisualization 
-                  pieces={Array(parseInt(products[0].quantity) || 1).fill().map((_, i) => ({
-                    id: i + 1,
-                    width: parseFloat(products[0].width) || 0,
-                    depth: parseFloat(products[0].depth) || 0,
-                    name: `${products[0].stone} #${i + 1}`
-                  }))}
-                  slabWidth={parseFloat(stoneOptions.find(s => s["Stone Type"] === products[0].stone)?.["Slab Width"]) || 126}
-                  slabHeight={parseFloat(stoneOptions.find(s => s["Stone Type"] === products[0].stone)?.["Slab Height"]) || 63}
-                  maxPiecesPerSlab={products[0].result?.topsPerSlab || 1}
-                  includeKerf={includeKerf}
-                  kerfWidth={kerfWidth}
-                />
+            {/* Visual Layouts for All Products */}
+            {showVisualLayouts && (
+              <div className="mb-6 space-y-6">
+                {allResults.map((product, productIndex) => {
+                  if (!product.result) return null;
+                  
+                  const stone = stoneOptions.find(s => s["Stone Type"] === product.stone);
+                  const slabWidth = parseFloat(stone?.["Slab Width"]) || 126;
+                  const slabHeight = parseFloat(stone?.["Slab Height"]) || 63;
+                  
+                  return (
+                    <div key={productIndex} className="bg-white p-4 rounded border">
+                      <h4 className="font-semibold text-gray-800 mb-3">
+                        Layout Preview: {product.customName || `Product ${productIndex + 1}`} - {product.stone} ({product.width}x{product.depth})
+                      </h4>
+                      
+                      <div className="flex flex-col lg:flex-row gap-6">
+                        {/* Visual Layout */}
+                        <div className="flex-1">
+                          {product.result.topsPerSlab > 1 ? (
+                            <MultiSlabVisualization 
+                              pieces={Array(parseInt(product.quantity) || 1).fill().map((_, i) => ({
+                                id: i + 1,
+                                width: parseFloat(product.width) || 0,
+                                depth: parseFloat(product.depth) || 0,
+                                name: `${product.stone} #${i + 1}`
+                              }))}
+                              slabWidth={slabWidth}
+                              slabHeight={slabHeight}
+                              maxPiecesPerSlab={product.result.topsPerSlab}
+                              includeKerf={includeKerf}
+                              kerfWidth={kerfWidth}
+                            />
+                          ) : (
+                            <SlabLayoutVisualization 
+                              pieces={Array(Math.min(parseInt(product.quantity) || 1, product.result.topsPerSlab)).fill().map((_, i) => ({
+                                id: i + 1,
+                                width: parseFloat(product.width) || 0,
+                                depth: parseFloat(product.depth) || 0,
+                                name: `${product.stone} #${i + 1}`
+                              }))}
+                              slabWidth={slabWidth}
+                              slabHeight={slabHeight}
+                              maxPiecesPerSlab={product.result.topsPerSlab}
+                              includeKerf={includeKerf}
+                              kerfWidth={kerfWidth}
+                            />
+                          )}
+                        </div>
+                        
+                        {/* Layout Analysis */}
+                        <div className="w-full lg:w-64 bg-gray-50 p-4 rounded">
+                          <h5 className="font-semibold mb-3">Layout Analysis</h5>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-4 h-4 bg-blue-200 border-2 border-blue-600"></div>
+                              <span>Vertical: {product.width}x{product.depth}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="w-4 h-4 bg-orange-200 border-2 border-orange-600"></div>
+                              <span>Horizontal: {product.depth}x{product.width}</span>
+                            </div>
+                            {includeKerf && (
+                              <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 bg-red-200 border border-red-400"></div>
+                                <span>Kerf: {kerfWidth}"</span>
+                              </div>
+                            )}
+                            
+                            <div className="pt-2 border-t space-y-1">
+                              <div><strong>Max Pieces/Slab:</strong> {product.result.topsPerSlab}</div>
+                              <div><strong>Total Quantity:</strong> {product.quantity}</div>
+                              <div><strong>Efficiency:</strong> <span className="text-green-600 font-semibold">{product.result.efficiency?.toFixed(1) || '0'}%</span></div>
+                              <div><strong>Slabs Needed:</strong> {product.result.totalSlabsNeeded}</div>
+                              
+                              {product.priority && product.priority !== 'normal' && (
+                                <div className="pt-1">
+                                  <strong>Priority:</strong> 
+                                  <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                                    product.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {product.priority === 'high' ? 'High' : 'Low'}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {product.specialReq && product.specialReq !== 'none' && (
+                                <div className="pt-1">
+                                  <strong>Special Req:</strong>
+                                  <div className="text-xs text-orange-600 mt-1">
+                                    {product.specialReq.replace('-', ' ')}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {product.installDate && (
+                                <div className="pt-1">
+                                  <strong>Install Date:</strong>
+                                  <div className="text-xs text-blue-600 mt-1">
+                                    {new Date(product.installDate).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Product Notes */}
+                      {product.note && (
+                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                          <strong className="text-yellow-800">Notes:</strong>
+                          <p className="text-sm text-yellow-700 mt-1">{product.note}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
