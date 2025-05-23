@@ -130,9 +130,15 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
     const layout = [];
     const targetPieces = Math.min(pieces.length, maxPiecesPerSlab);
     
+    // If maxPiecesPerSlab was calculated correctly by the mixed orientation algorithm,
+    // we need to figure out which combination of orientations achieves that maximum
+    
+    // First, check if single orientations can achieve the target
     const orientation1Fits = Math.floor((slabWidth + kerf) / (pieceWidth + kerf)) * Math.floor((slabHeight + kerf) / (pieceHeight + kerf));
+    const orientation2Fits = Math.floor((slabWidth + kerf) / (pieceHeight + kerf)) * Math.floor((slabHeight + kerf) / (pieceWidth + kerf));
     
     if (orientation1Fits >= targetPieces) {
+      // Use vertical orientation (w×h)
       const cols = Math.floor((slabWidth + kerf) / (pieceWidth + kerf));
       const rows = Math.ceil(targetPieces / cols);
       
@@ -148,7 +154,165 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
           });
         }
       }
+    } else if (orientation2Fits >= targetPieces) {
+      // Use horizontal orientation (h×w)
+      const cols = Math.floor((slabWidth + kerf) / (pieceHeight + kerf));
+      const rows = Math.ceil(targetPieces / cols);
+      
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols && layout.length < targetPieces; col++) {
+          layout.push({
+            x: col * (pieceHeight + kerf),
+            y: row * (pieceWidth + kerf),
+            width: pieceHeight,
+            height: pieceWidth,
+            orientation: 'horizontal',
+            id: layout.length + 1
+          });
+        }
+      }
+    } else {
+      // Mixed orientation needed - find the optimal combination that gives us targetPieces
+      // This should match the calculation logic in calculateMaxPiecesPerSlab
+      
+      let bestLayout = [];
+      let maxFound = 0;
+      
+      // Try Method A: rows of orientation 1, then rows of orientation 2
+      for (let rows1 = 0; rows1 <= Math.floor((slabHeight + kerf) / (pieceHeight + kerf)); rows1++) {
+        const usedHeight1 = Math.max(0, rows1 * (pieceHeight + kerf) - kerf);
+        const remainingHeight = slabHeight - usedHeight1;
+        
+        const pieces1 = rows1 * Math.floor((slabWidth + kerf) / (pieceWidth + kerf));
+        
+        let pieces2 = 0;
+        if (remainingHeight >= pieceWidth) {
+          const rows2 = Math.floor((remainingHeight + kerf) / (pieceWidth + kerf));
+          pieces2 = rows2 * Math.floor((slabWidth + kerf) / (pieceHeight + kerf));
+        }
+        
+        const totalPieces = pieces1 + pieces2;
+        
+        // Accept any layout that can fit our targetPieces, prioritizing layouts that use exactly targetPieces
+        if (totalPieces >= targetPieces && (totalPieces <= maxFound + 1 || bestLayout.length === 0)) {
+          // Generate this layout
+          const tempLayout = [];
+          
+          // Add orientation 1 pieces (vertical) - but only up to what we need
+          const cols1 = Math.floor((slabWidth + kerf) / (pieceWidth + kerf));
+          let piecesAdded = 0;
+          for (let row = 0; row < rows1 && piecesAdded < targetPieces; row++) {
+            for (let col = 0; col < cols1 && piecesAdded < targetPieces; col++) {
+              tempLayout.push({
+                x: col * (pieceWidth + kerf),
+                y: row * (pieceHeight + kerf),
+                width: pieceWidth,
+                height: pieceHeight,
+                orientation: 'vertical',
+                id: tempLayout.length + 1
+              });
+              piecesAdded++;
+            }
+          }
+          
+          // Add orientation 2 pieces (horizontal) - only if we still need more pieces
+          if (piecesAdded < targetPieces && remainingHeight >= pieceWidth) {
+            const rows2 = Math.floor((remainingHeight + kerf) / (pieceWidth + kerf));
+            const cols2 = Math.floor((slabWidth + kerf) / (pieceHeight + kerf));
+            for (let row = 0; row < rows2 && piecesAdded < targetPieces; row++) {
+              for (let col = 0; col < cols2 && piecesAdded < targetPieces; col++) {
+                tempLayout.push({
+                  x: col * (pieceHeight + kerf),
+                  y: usedHeight1 + row * (pieceWidth + kerf),
+                  width: pieceHeight,
+                  height: pieceWidth,
+                  orientation: 'horizontal',
+                  id: tempLayout.length + 1
+                });
+                piecesAdded++;
+              }
+            }
+          }
+          
+          // Use this layout if it fits our pieces better
+          if (tempLayout.length >= targetPieces || tempLayout.length > bestLayout.length) {
+            bestLayout = tempLayout.slice(0, targetPieces);
+            maxFound = tempLayout.length;
+          }
+        }
+      }
+      
+      // Try Method B: rows of orientation 2, then rows of orientation 1
+      for (let rows2 = 0; rows2 <= Math.floor((slabHeight + kerf) / (pieceWidth + kerf)); rows2++) {
+        const usedHeight2 = Math.max(0, rows2 * (pieceWidth + kerf) - kerf);
+        const remainingHeight = slabHeight - usedHeight2;
+        
+        const pieces2 = rows2 * Math.floor((slabWidth + kerf) / (pieceHeight + kerf));
+        
+        let pieces1 = 0;
+        if (remainingHeight >= pieceHeight) {
+          const rows1 = Math.floor((remainingHeight + kerf) / (pieceHeight + kerf));
+          pieces1 = rows1 * Math.floor((slabWidth + kerf) / (pieceWidth + kerf));
+        }
+        
+        const totalPieces = pieces1 + pieces2;
+        
+        // Accept any layout that can fit our targetPieces
+        if (totalPieces >= targetPieces && (totalPieces < maxFound || bestLayout.length < targetPieces)) {
+          // Generate this layout
+          const tempLayout = [];
+          
+          // Add orientation 2 pieces (horizontal) - but only up to what we need
+          const cols2 = Math.floor((slabWidth + kerf) / (pieceHeight + kerf));
+          let piecesAdded = 0;
+          for (let row = 0; row < rows2 && piecesAdded < targetPieces; row++) {
+            for (let col = 0; col < cols2 && piecesAdded < targetPieces; col++) {
+              tempLayout.push({
+                x: col * (pieceHeight + kerf),
+                y: row * (pieceWidth + kerf),
+                width: pieceHeight,
+                height: pieceWidth,
+                orientation: 'horizontal',
+                id: tempLayout.length + 1
+              });
+              piecesAdded++;
+            }
+          }
+          
+          // Add orientation 1 pieces (vertical) - only if we still need more pieces
+          if (piecesAdded < targetPieces && remainingHeight >= pieceHeight) {
+            const rows1 = Math.floor((remainingHeight + kerf) / (pieceHeight + kerf));
+            const cols1 = Math.floor((slabWidth + kerf) / (pieceWidth + kerf));
+            for (let row = 0; row < rows1 && piecesAdded < targetPieces; row++) {
+              for (let col = 0; col < cols1 && piecesAdded < targetPieces; col++) {
+                tempLayout.push({
+                  x: col * (pieceWidth + kerf),
+                  y: usedHeight2 + row * (pieceHeight + kerf),
+                  width: pieceWidth,
+                  height: pieceHeight,
+                  orientation: 'vertical',
+                  id: tempLayout.length + 1
+                });
+                piecesAdded++;
+              }
+            }
+          }
+          
+          // Use this layout if it's better (fits more pieces or fits exactly)
+          if (tempLayout.length >= targetPieces && (tempLayout.length < maxFound || bestLayout.length < targetPieces)) {
+            bestLayout = tempLayout.slice(0, targetPieces);
+            maxFound = tempLayout.length;
+          }
+        }
+      }
+      
+      layout.push(...bestLayout);
     }
+    
+    console.log(`Generated layout for ${pieceWidth}×${pieceHeight} on ${slabWidth}×${slabHeight}`);
+    console.log(`Target pieces: ${targetPieces}, Generated pieces: ${layout.length}`);
+    console.log(`Max capacity: ${maxPiecesPerSlab}`);
+    console.log('Layout pieces:', layout);
     
     return layout;
   };
@@ -180,7 +344,11 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
         {layoutPieces.map((piece) => (
           <div
             key={piece.id}
-            className="absolute border-2 flex items-center justify-center text-xs font-semibold bg-blue-200 border-blue-600 text-blue-800"
+            className={`absolute border-2 flex items-center justify-center text-xs font-semibold ${
+              piece.orientation === 'vertical' 
+                ? 'bg-blue-200 border-blue-600 text-blue-800' 
+                : 'bg-orange-200 border-orange-600 text-orange-800'
+            }`}
             style={{
               left: `${piece.x * scale}px`,
               top: `${piece.y * scale}px`,
@@ -194,10 +362,42 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
             </div>
           </div>
         ))}
+        
+        {/* Show kerf lines if enabled */}
+        {includeKerf && kerf > 0 && layoutPieces.length > 1 && (
+          <>
+            {/* Vertical kerf lines */}
+            {Array.from(new Set(layoutPieces.map(p => p.x + p.width))).map((x, i) => (
+              <div
+                key={`v-kerf-${i}`}
+                className="absolute bg-red-300 opacity-70"
+                style={{
+                  left: `${x * scale}px`,
+                  top: '0px',
+                  width: `${kerf * scale}px`,
+                  height: `${scaledSlabHeight}px`,
+                }}
+              />
+            ))}
+            {/* Horizontal kerf lines */}
+            {Array.from(new Set(layoutPieces.map(p => p.y + p.height))).map((y, i) => (
+              <div
+                key={`h-kerf-${i}`}
+                className="absolute bg-red-300 opacity-70"
+                style={{
+                  left: '0px',
+                  top: `${y * scale}px`,
+                  width: `${scaledSlabWidth}px`,
+                  height: `${kerf * scale}px`,
+                }}
+              />
+            ))}
+          </>
+        )}
       </div>
       
       <div className="mt-2 text-xs text-gray-500 text-center">
-        Showing {layoutPieces.length} of {pieces.length} pieces
+        Showing {layoutPieces.length} of {pieces.length} pieces (max {maxPiecesPerSlab}/slab)
       </div>
     </div>
   );
@@ -305,16 +505,56 @@ const StoneTopEstimator = () => {
 
   const calculateMaxPiecesPerSlab = (pieceW, pieceH, slabW, slabH) => {
     const kerf = includeKerf ? kerfWidth : 0;
-    
+    let maxPieces = 0;
+
+    // Option 1: All pieces in orientation 1 (w × h)
     const fit1W = Math.floor((slabW + kerf) / (pieceW + kerf));
     const fit1H = Math.floor((slabH + kerf) / (pieceH + kerf));
     const option1 = fit1W * fit1H;
 
+    // Option 2: All pieces in orientation 2 (h × w)  
     const fit2W = Math.floor((slabW + kerf) / (pieceH + kerf));
     const fit2H = Math.floor((slabH + kerf) / (pieceW + kerf));
     const option2 = fit2W * fit2H;
 
-    return Math.max(option1, option2);
+    maxPieces = Math.max(option1, option2);
+
+    // Option 3: Mixed orientations - CORRECTED ALGORITHM
+    // Try all possible row combinations like the CutList Optimizer
+    
+    // Method A: First row(s) with orientation 1, remaining rows with orientation 2
+    for (let rows1 = 0; rows1 <= Math.floor((slabH + kerf) / (pieceH + kerf)); rows1++) {
+      const usedHeight1 = Math.max(0, rows1 * (pieceH + kerf) - kerf);
+      const remainingHeight = slabH - usedHeight1;
+      
+      const pieces1 = rows1 * Math.floor((slabW + kerf) / (pieceW + kerf));
+      
+      if (remainingHeight >= pieceW) {
+        const rows2 = Math.floor((remainingHeight + kerf) / (pieceW + kerf));
+        const pieces2 = rows2 * Math.floor((slabW + kerf) / (pieceH + kerf));
+        maxPieces = Math.max(maxPieces, pieces1 + pieces2);
+      } else {
+        maxPieces = Math.max(maxPieces, pieces1);
+      }
+    }
+
+    // Method B: First row(s) with orientation 2, remaining rows with orientation 1
+    for (let rows2 = 0; rows2 <= Math.floor((slabH + kerf) / (pieceW + kerf)); rows2++) {
+      const usedHeight2 = Math.max(0, rows2 * (pieceW + kerf) - kerf);
+      const remainingHeight = slabH - usedHeight2;
+      
+      const pieces2 = rows2 * Math.floor((slabW + kerf) / (pieceH + kerf));
+      
+      if (remainingHeight >= pieceH) {
+        const rows1 = Math.floor((remainingHeight + kerf) / (pieceH + kerf));
+        const pieces1 = rows1 * Math.floor((slabW + kerf) / (pieceW + kerf));
+        maxPieces = Math.max(maxPieces, pieces1 + pieces2);
+      } else {
+        maxPieces = Math.max(maxPieces, pieces2);
+      }
+    }
+
+    return maxPieces;
   };
 
   const optimizeSlabLayout = (pieces, slabWidth, slabHeight) => {
