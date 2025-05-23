@@ -610,6 +610,293 @@ const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSl
 
   const pieceWidth = pieces[0].width;
   const pieceHeight = pieces[0].depth;
+  
+  // Group pieces into slabs
+  const slabs = [];
+  let remainingPieces = [...pieces];
+  let slabNumber = 1;
+  
+  while (remainingPieces.length > 0) {
+    const piecesForThisSlab = remainingPieces.splice(0, Math.min(maxPiecesPerSlab, remainingPieces.length));
+    const slabLayout = generateSlabLayout(piecesForThisSlab, slabWidth, slabHeight, maxPiecesPerSlab, includeKerf, kerfWidth);
+    slabs.push({
+      number: slabNumber++,
+      pieces: piecesForThisSlab,
+      layout: slabLayout,
+      utilization: (piecesForThisSlab.length / maxPiecesPerSlab * 100).toFixed(1)
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h4 className="text-lg font-semibold mb-2">Multi-Slab Layout Plan</h4>
+        <p className="text-sm text-gray-600">
+          {pieces.length} pieces across {slabs.length} slab{slabs.length > 1 ? 's' : ''}
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {slabs.map((slab) => (
+          <div key={slab.number} className="border rounded-lg p-4 bg-white">
+            <div className="flex justify-between items-center mb-3">
+              <h5 className="font-semibold text-gray-800">
+                Slab #{slab.number}
+              </h5>
+              <div className="text-sm space-y-1">
+                <div>Pieces: {slab.pieces.length}/{maxPiecesPerSlab}</div>
+                <div className="text-xs text-gray-600">
+                  Utilization: {slab.utilization}%
+                </div>
+              </div>
+            </div>
+            
+            <SlabLayoutVisualization 
+              pieces={slab.pieces}
+              slabWidth={slabWidth}
+              slabHeight={slabHeight}
+              maxPiecesPerSlab={maxPiecesPerSlab}
+              includeKerf={includeKerf}
+              kerfWidth={kerfWidth}
+            />
+            
+            {/* Piece List for this slab */}
+            <div className="mt-3 text-xs">
+              <strong>Pieces on this slab:</strong>
+              <div className="grid grid-cols-2 gap-1 mt-1">
+                {slab.pieces.map((piece, idx) => (
+                  <div key={idx} className="text-gray-600">
+                    #{piece.id}: {pieceWidth}×{pieceHeight}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {/* Summary Statistics */}
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h5 className="font-semibold mb-2">Layout Summary</h5>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <div className="font-medium">Total Slabs</div>
+            <div className="text-lg font-bold text-blue-600">{slabs.length}</div>
+          </div>
+          <div>
+            <div className="font-medium">Total Pieces</div>
+            <div className="text-lg font-bold text-green-600">{pieces.length}</div>
+          </div>
+          <div>
+            <div className="font-medium">Avg Utilization</div>
+            <div className="text-lg font-bold text-purple-600">
+              {(slabs.reduce((sum, s) => sum + parseFloat(s.utilization), 0) / slabs.length).toFixed(1)}%
+            </div>
+          </div>
+          <div>
+            <div className="font-medium">Waste Factor</div>
+            <div className="text-lg font-bold text-orange-600">
+              {((slabs.length * maxPiecesPerSlab - pieces.length) / (slabs.length * maxPiecesPerSlab) * 100).toFixed(1)}%
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Helper function to generate layout for a single slab
+const generateSlabLayout = (pieces, slabWidth, slabHeight, maxPiecesPerSlab, includeKerf, kerfWidth) => {
+  // Use the same logic as SlabLayoutVisualization but return layout data
+  const pieceWidth = pieces[0].width;
+  const pieceHeight = pieces[0].depth;
+  const kerf = includeKerf ? kerfWidth : 0;
+  
+  // This would use the same algorithm as in SlabLayoutVisualization
+  // For now, return a simple layout - this can be enhanced
+  return pieces.map((piece, index) => ({
+    ...piece,
+    position: index + 1,
+    slabPosition: { x: 0, y: 0 } // Simplified for now
+  }));
+};
+
+// Layout Export Component
+const LayoutExportControls = ({ allResults, products, stoneOptions, includeKerf, kerfWidth }) => {
+  const [exportFormat, setExportFormat] = useState('image');
+  const [includeDetails, setIncludeDetails] = useState(true);
+  
+  const exportLayoutAsImage = () => {
+    // Create a new window/canvas for export
+    const exportWindow = window.open('', '_blank', 'width=1200,height=800');
+    if (!exportWindow) {
+      alert('Please allow popups for layout export');
+      return;
+    }
+    
+    exportWindow.document.write(`
+      <html>
+        <head>
+          <title>Stone Layout Export - ${new Date().toLocaleDateString()}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .slab-container { margin-bottom: 40px; page-break-inside: avoid; }
+            .slab-visual { border: 2px solid #333; margin: 20px 0; position: relative; background: #f5f5f5; }
+            .piece { position: absolute; border: 2px solid; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; }
+            .piece.vertical { background: #e3f2fd; border-color: #1976d2; color: #1976d2; }
+            .piece.horizontal { background: #fff3e0; border-color: #f57c00; color: #f57c00; }
+            .summary { background: #f9f9f9; padding: 15px; border-radius: 5px; }
+            @media print { .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Stone Layout Plan</h1>
+            <p>Generated: ${new Date().toLocaleString()}</p>
+            <p>Mode: ${includeKerf ? `Production (${kerfWidth}" kerf)` : 'Theoretical (no kerf)'}</p>
+          </div>
+        </body>
+      </html>
+    `);
+    
+    // Add layout content for each product
+    allResults.forEach((product, productIndex) => {
+      if (!product.result) return;
+      
+      const stone = stoneOptions.find(s => s["Stone Type"] === product.stone);
+      const slabWidth = parseFloat(stone?.["Slab Width"] || 126);
+      const slabHeight = parseFloat(stone?.["Slab Height"] || 63);
+      
+      exportWindow.document.body.innerHTML += `
+        <div class="slab-container">
+          <h2>Product ${productIndex + 1}: ${product.stone} (${product.width}×${product.depth})</h2>
+          <div class="summary">
+            <strong>Quantity:</strong> ${product.quantity} pieces | 
+            <strong>Slabs Needed:</strong> ${product.result.totalSlabsNeeded} | 
+            <strong>Efficiency:</strong> ${product.result.efficiency.toFixed(1)}%
+          </div>
+        </div>
+      `;
+    });
+    
+    exportWindow.document.body.innerHTML += `
+      <div class="no-print" style="margin-top: 30px; text-align: center;">
+        <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">Print Layout</button>
+        <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">Close</button>
+      </div>
+    `;
+    
+    exportWindow.document.close();
+  };
+  
+  const generateCutList = () => {
+    let cutListContent = `STONE CUT LIST - ${new Date().toLocaleDateString()}\n`;
+    cutListContent += `Mode: ${includeKerf ? `Production (${kerfWidth}" kerf)` : 'Theoretical (no kerf)'}\n`;
+    cutListContent += `=`.repeat(60) + '\n\n';
+    
+    allResults.forEach((product, productIndex) => {
+      if (!product.result) return;
+      
+      cutListContent += `PRODUCT ${productIndex + 1}: ${product.stone}\n`;
+      cutListContent += `Size: ${product.width}" × ${product.depth}"\n`;
+      cutListContent += `Quantity: ${product.quantity} pieces\n`;
+      cutListContent += `Slabs Required: ${product.result.totalSlabsNeeded}\n`;
+      cutListContent += `Pieces per Slab: ${product.result.topsPerSlab}\n`;
+      cutListContent += `Efficiency: ${product.result.efficiency.toFixed(1)}%\n`;
+      
+      // Generate piece list
+      for (let i = 1; i <= product.quantity; i++) {
+        const slabNumber = Math.ceil(i / product.result.topsPerSlab);
+        const pieceOnSlab = ((i - 1) % product.result.topsPerSlab) + 1;
+        cutListContent += `  Piece ${i}: Slab ${slabNumber}, Position ${pieceOnSlab}\n`;
+      }
+      
+      cutListContent += '\n' + '-'.repeat(40) + '\n\n';
+    });
+    
+    // Create downloadable file
+    const blob = new Blob([cutListContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stone_cut_list_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  
+  const shareLayoutURL = () => {
+    // Create a shareable URL with layout data
+    const layoutData = {
+      products: products.filter(p => p.result),
+      settings: { includeKerf, kerfWidth },
+      timestamp: new Date().toISOString()
+    };
+    
+    // In a real app, this would be stored in a database and return a short URL
+    const encodedData = btoa(JSON.stringify(layoutData));
+    const shareURL = `${window.location.origin}${window.location.pathname}?layout=${encodedData}`;
+    
+    navigator.clipboard.writeText(shareURL).then(() => {
+      alert('Layout URL copied to clipboard! Share this with your fabricator.');
+    }).catch(() => {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = shareURL;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Layout URL copied to clipboard! Share this with your fabricator.');
+    });
+  };
+  
+  if (!allResults || allResults.length === 0) return null;
+  
+  return (
+    <div className="bg-blue-50 p-4 rounded-lg space-y-4">
+      <h4 className="font-semibold text-blue-800">Export & Share Layout</h4>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button
+          onClick={exportLayoutAsImage}
+          className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          <span>📊</span>
+          <span>Export Visual Layout</span>
+        </button>
+        
+        <button
+          onClick={generateCutList}
+          className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 text-white rounded hover:bg-green-700"
+        >
+          <span>📋</span>
+          <span>Download Cut List</span>
+        </button>
+        
+        <button
+          onClick={shareLayoutURL}
+          className="flex items-center justify-center space-x-2 px-4 py-3 bg-purple-600 text-white rounded hover:bg-purple-700"
+        >
+          <span>🔗</span>
+          <span>Share Layout URL</span>
+        </button>
+      </div>
+      
+      <div className="text-xs text-gray-600">
+        <strong>Export Options:</strong> Visual layouts can be printed or saved as PDF. Cut lists include piece positioning. Share URLs allow fabricators to view your exact layout.
+      </div>
+    </div>
+  );
+};
+
+const SlabLayoutVisualization = ({ pieces, slabWidth, slabHeight, maxPiecesPerSlab, includeKerf, kerfWidth }) => {
+  if (!pieces || pieces.length === 0) return null;
+
+  const pieceWidth = pieces[0].width;
+  const pieceHeight = pieces[0].depth;
   const kerf = includeKerf ? kerfWidth : 0;
 
   // Calculate the optimal layout using general algorithm
