@@ -323,11 +323,18 @@ export default function StoneTopEstimator() {
   };
 
   const calculateAll = () => {
-    console.log("Calculate button clicked!");
+    console.log("🚀 Calculate button clicked!");
     
     const results = products.map((product) => {
+      console.log("📦 Processing product:", product);
+      
       const stone = stoneOptions.find(s => s["Stone Type"] === product.stone);
-      if (!stone) return { ...product, result: null };
+      console.log("🪨 Found stone data:", stone);
+      
+      if (!stone) {
+        console.log("❌ No stone data found for:", product.stone);
+        return { ...product, result: null };
+      }
 
       const slabCost = parseFloat(stone["Slab Cost"]);
       const fabCost = parseFloat(stone["Fab Cost"]);
@@ -336,10 +343,22 @@ export default function StoneTopEstimator() {
       const d = parseFloat(product.depth);
       const quantity = parseInt(product.quantity);
 
-      if (!w || !d || isNaN(slabCost) || isNaN(fabCost) || isNaN(markup)) return { ...product, result: null };
+      console.log("📏 Parsed dimensions:", { w, d, quantity });
+
+      if (!w || !d || isNaN(slabCost) || isNaN(fabCost) || isNaN(markup)) {
+        console.log("❌ Invalid data:", { w, d, slabCost, fabCost, markup });
+        return { ...product, result: null };
+      }
 
       const slabWidth = parseFloat(stone["Slab Width"]);
       const slabHeight = parseFloat(stone["Slab Height"]);
+      
+      console.log("🏗️ Slab dimensions:", { slabWidth, slabHeight });
+
+      if (!slabWidth || !slabHeight) {
+        console.log("❌ Invalid slab dimensions from Google Sheets");
+        return { ...product, result: null };
+      }
 
       const pieces = Array(quantity).fill().map((_, i) => ({
         id: i + 1,
@@ -348,7 +367,16 @@ export default function StoneTopEstimator() {
         name: `${product.stone} #${i + 1}`
       }));
 
+      console.log("🎯 About to call optimizeSlabLayout with:", { 
+        pieces: pieces.length, 
+        slabWidth, 
+        slabHeight,
+        pieceSize: `${w}×${d}` 
+      });
+
       const optimization = optimizeSlabLayout(pieces, slabWidth, slabHeight);
+      
+      console.log("✅ Optimization result:", optimization);
       
       const area = w * d;
       const usableAreaSqft = (area / 144) * quantity;
